@@ -12,8 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.wingsheep.freesky.ui.theme.FreeskyTheme
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -21,7 +25,7 @@ class MainActivity : ComponentActivity() {
             FreeskyTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = "Freesky",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -42,6 +46,6 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview() {
     FreeskyTheme {
-        Greeting("Android")
+        Greeting("Freesky")
     }
 }

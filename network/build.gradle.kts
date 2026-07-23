@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -20,7 +22,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    // R8 / ProGuard configuration
     buildTypes {
         release {
             proguardFiles(
@@ -41,21 +42,16 @@ android {
 }
 
 dependencies {
-    // AndroidX
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
-
-    // OkHttp — single HTTP client for all network operations
     implementation(libs.okhttp)
-
-    // Coroutines — for suspend-based API calls
     implementation(libs.kotlinx.coroutines)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 
-    // Crypto layer — needed for KeyRotationHandler
     implementation(project(":encrypt"))
 
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
