@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.torproject.jni.TorService
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +41,26 @@ class TorProxyManager @Inject constructor(
         val port: Int
     )
 
+    /**
+     * Tor daemon configuration options.  These are written to the `torrc`
+     * file that [TorService] reads when starting the Tor daemon.
+     *
+     * Call [configure] before [start] to apply these settings.
+     *
+     * @param socksPort SOCKS proxy port (default 9050)
+     * @param controlPort Optional control port for jtorctl commands
+     * @param bridges List of bridge lines for censorship circumvention
+     * @param logLevel Tor log level (e.g. "notice", "info", "debug")
+     * @param customOptions Additional torrc key-value pairs
+     */
+    data class TorConfig(
+        val socksPort: Int = 9050,
+        val controlPort: Int? = null,
+        val bridges: List<String> = emptyList(),
+        val logLevel: String = "notice",
+        val customOptions: Map<String, String> = emptyMap()
+    )
+
     private var torService: TorService? = null
     private val ready = AtomicBoolean(false)
     private var _socksPort: Int = 9050
@@ -52,6 +74,48 @@ class TorProxyManager @Inject constructor(
 
     val isReady: Boolean get() = ready.get()
     val socksPort: Int get() = _socksPort
+
+    /**
+     * Writes a `torrc` configuration file to the location expected by
+     * [TorService].  Must be called **before** [start] for the settings
+     * to take effect.
+     *
+     * If this method is never called, Tor uses the defaults written by
+     * [TorService] (SOCKS port 9050, no bridges, no control port).
+     */
+    fun configure(config: TorConfig = TorConfig()) {
+        val torrc: File = TorService.getTorrc(context)
+        torrc.parentFile?.mkdirs()
+        torrc.writeText(buildString {
+            append("SOCKSPort ${config.socksPort}\n")
+            config.controlPort?.let { append("ControlPort $it\n") }
+            if (config.bridges.isNotEmpty()) {
+                append("UseBridges 1\n")
+                config.bridges.forEach { bridge ->
+                    append("Bridge $bridge\n")
+                }
+            }
+            append("Log ${config.logLevel} stdout\n")
+            config.customOptions.forEach { (key, value) ->
+                append("$key $value\n")
+            }
+        })
+        _socksPort = config.socksPort
+        Log.d("TorProxyManager", "torrc written to ${torrc.absolutePath}")
+    }
+
+    /**
+     * Removes the custom `torrc` file so that Tor falls back to the
+     * defaults provided by [TorService].
+     */
+    fun clearConfig() {
+        val torrc: File = TorService.getTorrc(context)
+        if (torrc.exists()) {
+            torrc.delete()
+            Log.d("TorProxyManager", "torrc removed")
+        }
+        _socksPort = 9050
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -78,11 +142,13 @@ class TorProxyManager @Inject constructor(
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val status = intent?.getStringExtra(TorService.EXTRA_STATUS)
+            Log.d("TorProxyManager", "Tor status: $status")
             when (status) {
                 TorService.STATUS_ON -> {
                     val port = torService?.socksPort ?: 9050
                     _socksPort = port
                     ready.set(true)
+                    Log.i("TorProxyManager", "Tor is ready, SOCKS port: $port")
                     val deferred = startDeferred
                     if (deferred != null && deferred.isActive) {
                         deferred.complete(ProxyConfig(port = port))

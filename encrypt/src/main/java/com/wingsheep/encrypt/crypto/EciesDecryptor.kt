@@ -1,6 +1,7 @@
 package com.wingsheep.encrypt.crypto
 
 import com.wingsheep.encrypt.identity.DeviceKeyManager
+import timber.log.Timber
 import java.security.PrivateKey
 import java.security.PublicKey
 import javax.crypto.Cipher
@@ -23,10 +24,13 @@ object EciesDecryptor {
         encryptedPayload: ByteArray,
         privateKey: PrivateKey
     ): ByteArray {
+        Timber.d("decrypt: payload ${encryptedPayload.size} bytes")
         val pkg = EciesPackage.deserialize(encryptedPayload)
+        Timber.d("  epk=${pkg.ephemeralPublicKey.size}B nonce=${pkg.nonce.size}B ct=${pkg.ciphertext.size}B")
 
         val ephemeralPubKey = parseEphemeralPublicKey(pkg.ephemeralPublicKey)
         val sharedSecret = performEcdh(privateKey, ephemeralPubKey)
+        Timber.d("  ECDH shared secret: ${sharedSecret.size} bytes")
 
         val aesKey = Hkdf.deriveKey(
             salt = KDF_SALT,
@@ -34,12 +38,15 @@ object EciesDecryptor {
             info = KDF_INFO,
             length = AES_KEY_LENGTH_BYTES
         )
+        Timber.d("  HKDF AES key: ${aesKey.size} bytes")
 
         return try {
             val cipher = Cipher.getInstance(AES_GCM_TRANSFORM)
             val spec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, pkg.nonce)
             cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(aesKey, AES_ALGORITHM), spec)
-            cipher.doFinal(pkg.ciphertext)
+            val plaintext = cipher.doFinal(pkg.ciphertext)
+            Timber.d("  AES-256-GCM decrypt OK — plaintext ${plaintext.size} bytes")
+            plaintext
         } catch (e: Exception) {
             throw EciesDecryptionException(
                 "AES-GCM decryption failed — ciphertext may be tampered or key mismatch",

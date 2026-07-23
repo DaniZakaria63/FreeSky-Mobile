@@ -4,6 +4,7 @@ import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.network.api.ApiClient
 import com.wingsheep.network.api.OkHttpApiClient
 import com.wingsheep.network.rotation.KeyRotationHandler
+import com.wingsheep.network.rotation.RegistrationHandler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,7 +19,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideApiClient(client: OkHttpClient): ApiClient =
-        OkHttpApiClient(baseUrl = "https://api.freesky.app", client = client)
+        OkHttpApiClient(baseUrl = "http://192.168.0.103:3000", client = client)
+
+    @Provides
+    @Singleton
+    fun provideRegistrationHandler(
+        apiClient: ApiClient
+    ): RegistrationHandler = RegistrationHandler(apiClient = apiClient)
 
     @Provides
     @Singleton
