@@ -1,6 +1,5 @@
 package com.wingsheep.encrypt.crypto
 
-import com.wingsheep.encrypt.crypto.Hkdf
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -17,32 +16,18 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * Unit tests for [EciesDecryptor] and [EciesPackage].
- *
- * These tests run on the JVM (no Android required) because they use
- * only standard Java crypto APIs.  The ECIES encrypt side is implemented
- * here as a test helper since the production [EciesDecryptor] only
- * implements decryption (the server does the encryption).
- */
 class EciesDecryptorTest {
-
-    // ── ECIES round-trip ────────────────────────────────────────────
 
     @Test
     fun roundTrip_decryptReturnsOriginalPlaintext() {
-        // 1. Generate recipient key pair (P-256)
         val recipientKp = generateEcKeyPair()
         val recipientPub = recipientKp.public
         val recipientPriv = recipientKp.private
 
-        // 2. Generate ephemeral key pair
         val ephemeralKp = generateEcKeyPair()
 
-        // 3. ECDH: ephemeral_private ∘ recipient_public → shared secret
         val sharedSecret = performEcdh(ephemeralKp.private, recipientPub)
 
-        // 4. HKDF → AES-256 key (same params as EciesDecryptor)
         val aesKey = Hkdf.deriveKey(
             salt = "freesky-ecies-v1".toByteArray(Charsets.UTF_8),
             ikm = sharedSecret,
@@ -50,19 +35,15 @@ class EciesDecryptorTest {
             length = 32
         )
 
-        // 5. AES-256-GCM encrypt
-        val plaintext = "Hello, MLS World! 🔐".toByteArray(Charsets.UTF_8)
+        val plaintext = "Hello, MLS World! \uD83D\uDD10".toByteArray(Charsets.UTF_8)
         val nonce = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val ciphertext = aesGcmEncrypt(aesKey, nonce, plaintext)
 
-        // 6. Build wire format: ephemeralPubKey(65) || nonce(12) || ciphertext
         val ephemeralPubSec1 = publicKeyToSec1(ephemeralKp.public)
         val payload = ephemeralPubSec1 + nonce + ciphertext
 
-        // 7. Decrypt with EciesDecryptor (uses recipient private key)
         val decrypted = EciesDecryptor.decrypt(payload, recipientPriv)
 
-        // 8. Verify
         assertArrayEquals(plaintext, decrypted)
     }
 
@@ -72,7 +53,7 @@ class EciesDecryptorTest {
         val ephemeralKp = generateEcKeyPair()
         val sharedSecret = performEcdh(ephemeralKp.private, recipientKp.public)
         val aesKey = deriveAesKey(sharedSecret)
-        val plaintext = byteArrayOf()  // empty
+        val plaintext = byteArrayOf()
         val nonce = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val ciphertext = aesGcmEncrypt(aesKey, nonce, plaintext)
         val payload = publicKeyToSec1(ephemeralKp.public) + nonce + ciphertext
@@ -93,24 +74,21 @@ class EciesDecryptorTest {
         val ciphertext = aesGcmEncrypt(aesKey, nonce, plaintext)
         val payload = publicKeyToSec1(ephemeralKp.public) + nonce + ciphertext
 
-        // Decrypt with the WRONG private key → GCM tag verification fails
         EciesDecryptor.decrypt(payload, wrongKp.private)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun decrypt_payloadTooShort_throws() {
         val recipientKp = generateEcKeyPair()
-        val shortPayload = ByteArray(10)  // way too short
+        val shortPayload = ByteArray(10)
         EciesDecryptor.decrypt(shortPayload, recipientKp.private)
     }
-
-    // ── EciesPackage serialization ──────────────────────────────────
 
     @Test
     fun eciesPackage_serializeDeserialize_roundTrip() {
         val pubKey = ByteArray(65) { it.toByte() }
         val nonce = ByteArray(12) { (it + 1).toByte() }
-        val ciphertext = ByteArray(48) { it.toByte() }  // 32 + 16 tag
+        val ciphertext = ByteArray(48) { it.toByte() }
 
         val original = EciesPackage(pubKey, nonce, ciphertext)
         val serialized = original.serialize()
@@ -142,7 +120,7 @@ class EciesDecryptorTest {
     @Test(expected = IllegalArgumentException::class)
     fun eciesPackage_init_wrongPubKeySize() {
         EciesPackage(
-            ephemeralPublicKey = ByteArray(64),  // should be 65
+            ephemeralPublicKey = ByteArray(64),
             nonce = ByteArray(12),
             ciphertext = ByteArray(0)
         )
@@ -152,12 +130,10 @@ class EciesDecryptorTest {
     fun eciesPackage_init_wrongNonceSize() {
         EciesPackage(
             ephemeralPublicKey = ByteArray(65),
-            nonce = ByteArray(11),  // should be 12
+            nonce = ByteArray(11),
             ciphertext = ByteArray(0)
         )
     }
-
-    // ── Helpers ─────────────────────────────────────────────────────
 
     private fun generateEcKeyPair(): java.security.KeyPair {
         val kpg = KeyPairGenerator.getInstance("EC")
@@ -188,7 +164,6 @@ class EciesDecryptorTest {
         return cipher.doFinal(plaintext)
     }
 
-    /** Converts an EC public key to 65-byte SEC1 uncompressed format (0x04 || X || Y). */
     private fun publicKeyToSec1(publicKey: PublicKey): ByteArray {
         val ecPub = publicKey as ECPublicKey
         val point = ecPub.w
@@ -197,10 +172,8 @@ class EciesDecryptorTest {
         return byteArrayOf(0x04) + x + y
     }
 
-    /** Converts a BigInteger to a fixed-length byte array (big-endian, zero-padded). */
     private fun bigIntegerToFixedBytes(value: BigInteger, length: Int): ByteArray {
         val bytes = value.toByteArray()
-        // Remove leading zero byte if present (two's complement sign bit)
         val stripped = if (bytes.size > 1 && bytes[0] == 0.toByte()) {
             bytes.copyOfRange(1, bytes.size)
         } else {

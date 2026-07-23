@@ -7,9 +7,6 @@ import org.junit.Test
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * Unit tests for [Hkdf].
- */
 class HkdfTest {
 
     @Test
@@ -19,7 +16,6 @@ class HkdfTest {
 
         val prk = Hkdf.extract(salt, ikm)
 
-        // SHA-256 HMAC always produces 32 bytes
         assertEquals(32, prk.size)
     }
 
@@ -33,7 +29,6 @@ class HkdfTest {
 
     @Test
     fun extract_matchesRawHmacSha256() {
-        // Verify that Hkdf.extract is equivalent to raw HMAC-SHA256(salt, ikm)
         val salt = "my-salt-value".toByteArray()
         val ikm = "input-key-material".toByteArray()
 
@@ -69,7 +64,7 @@ class HkdfTest {
         val prk = ByteArray(32) { 0x42 }
         val info = "multi-block-test".toByteArray()
 
-        val okm = Hkdf.expand(prk, info, 80)  // > 32 bytes → 3 blocks
+        val okm = Hkdf.expand(prk, info, 80)
 
         assertEquals(80, okm.size)
     }
@@ -126,9 +121,6 @@ class HkdfTest {
         Hkdf.expand(prk, "info".toByteArray(), 256 * 32)
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
-
-    /** Computes raw HMAC-SHA256 for test verification. */
     private fun rawHmacSha256(key: ByteArray, data: ByteArray): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))

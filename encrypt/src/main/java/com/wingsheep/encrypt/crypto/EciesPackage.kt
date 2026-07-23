@@ -1,22 +1,9 @@
 package com.wingsheep.encrypt.crypto
 
-/**
- * Wire format for ECIES-encrypted payloads.
- *
- * ```
- * [ephemeralPublicKey (65 bytes)] [nonce (12 bytes)] [ciphertext (variable)]
- * ```
- *
- * - [ephemeralPublicKey]: 65-byte SEC1 uncompressed P-256 point (`0x04 || X || Y`)
- * - [nonce]: 12-byte AES-GCM nonce
- * - [ciphertext]: AES-GCM ciphertext (includes the 16-byte authentication tag)
- *
- * Reference: `docs/android-encryption-guide.md` §3.4
- */
 data class EciesPackage(
-    val ephemeralPublicKey: ByteArray,  // 65 bytes, SEC1 uncompressed
-    val nonce: ByteArray,               // 12 bytes
-    val ciphertext: ByteArray           // variable, includes 16-byte GCM tag
+    val ephemeralPublicKey: ByteArray,
+    val nonce: ByteArray,
+    val ciphertext: ByteArray
 ) {
     init {
         require(ephemeralPublicKey.size == 65) {
@@ -27,7 +14,6 @@ data class EciesPackage(
         }
     }
 
-    /** Serialises to the wire format: `ephemeralPublicKey || nonce || ciphertext`. */
     fun serialize(): ByteArray = ephemeralPublicKey + nonce + ciphertext
 
     override fun equals(other: Any?): Boolean {
@@ -49,7 +35,6 @@ data class EciesPackage(
         private const val PUBKEY_LEN = 65
         private const val NONCE_LEN = 12
 
-        /** Deserialises from the wire format. */
         fun deserialize(data: ByteArray): EciesPackage {
             require(data.size >= PUBKEY_LEN + NONCE_LEN) {
                 "Payload too short: ${data.size} bytes (need at least ${PUBKEY_LEN + NONCE_LEN})"
