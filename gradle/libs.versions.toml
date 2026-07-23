@@ -19,6 +19,7 @@ torAndroid = "0.4.9.11"
 jtorctl = "0.4.5.7"
 timber = "5.0.1"
 gson = "2.12.1"
+datastorePreferences = "1.1.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +49,7 @@ tor-android = { module = "info.guardianproject:tor-android", version.ref = "torA
 jtorctl = { module = "info.guardianproject:jtorctl", version.ref = "jtorctl" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

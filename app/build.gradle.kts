@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.tor.android)
     implementation(libs.jtorctl)
     implementation(libs.timber)
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
