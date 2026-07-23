@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import com.wingsheep.freesky.registration.DataStoreRegistrationStore
-import com.wingsheep.freesky.registration.RegistrationStore
-import com.wingsheep.freesky.tor.TorProxyManager
+import com.wingsheep.freesky.pipeline.DataStoreRegistrationStore
+import com.wingsheep.freesky.model.RegistrationStore
+import com.wingsheep.network.tor.TorProxyManager
 import com.wingsheep.network.NetworkClient
 import dagger.Binds
 import dagger.Module

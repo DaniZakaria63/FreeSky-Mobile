@@ -1,4 +1,4 @@
-package com.wingsheep.freesky.tor
+package com.wingsheep.network.tor
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName

@@ -1,7 +1,7 @@
 package com.wingsheep.freesky
 
 import android.app.Application
-import com.wingsheep.freesky.tor.TorProxyManager
+import com.wingsheep.network.tor.TorProxyManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -51,6 +51,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.timber)
     implementation(libs.gson)
+    implementation(libs.tor.android)
+    implementation(libs.jtorctl)
 
     implementation(project(":encrypt"))
 

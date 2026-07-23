@@ -9,11 +9,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wingsheep.freesky.ui.registration.RegistrationScreen
+import com.wingsheep.freesky.model.RegistrationUiState
+import com.wingsheep.freesky.ui.registration.RegistrationViewModel
 import com.wingsheep.freesky.ui.theme.FreeskyTheme
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -24,10 +29,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             FreeskyTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Freesky",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    val viewModel: RegistrationViewModel = viewModel()
+                    val state by viewModel.state.collectAsState()
+
+                    if (state is RegistrationUiState.Registered) {
+                        Greeting(
+                            name = "Freesky",
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    } else {
+                        RegistrationScreen(viewModel = viewModel)
+                    }
                 }
             }
         }

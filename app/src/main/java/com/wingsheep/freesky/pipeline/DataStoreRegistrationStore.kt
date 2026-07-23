@@ -1,12 +1,13 @@
-package com.wingsheep.freesky.registration
+package com.wingsheep.freesky.pipeline
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.wingsheep.freesky.model.RegistrationStore
+import com.wingsheep.freesky.model.RegistrationUiState
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
