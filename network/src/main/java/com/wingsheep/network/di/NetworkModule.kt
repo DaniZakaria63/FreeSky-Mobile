@@ -1,7 +1,6 @@
 package com.wingsheep.network.di
 
 import com.wingsheep.encrypt.mls.MlsGroupManager
-import com.wingsheep.network.NetworkClient
 import com.wingsheep.network.api.ApiClient
 import com.wingsheep.network.api.OkHttpApiClient
 import com.wingsheep.network.rotation.KeyRotationHandler
@@ -15,10 +14,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
-    @Provides
-    @Singleton
-    fun provideOkHttpClient(): OkHttpClient = NetworkClient.defaultClient
 
     @Provides
     @Singleton

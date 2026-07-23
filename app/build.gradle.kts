@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.wingsheep.freesky"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -40,6 +40,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":encrypt"))
+    implementation(project(":network"))
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -51,8 +54,9 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    implementation(project(":encrypt"))
-    implementation(project(":network"))
+    implementation(libs.okhttp)
+    implementation(libs.tor.android)
+    implementation(libs.jtorctl)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
