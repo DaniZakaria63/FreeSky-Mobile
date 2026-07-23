@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "freesky"
 include(":app")
 include(":encrypt")
+include(":network")
