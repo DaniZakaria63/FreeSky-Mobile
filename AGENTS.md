@@ -14,6 +14,7 @@ Android app (Jetpack Compose) + encrypt library. MLS-based encrypted community a
 - Kotlin 2.2.10, AGP 9.3.0, Gradle 9.5
 - Compose Material3, version catalog at `gradle/libs.versions.toml`
 - Crypto plan in `docs/` — read before implementing encryption features
+- **Canonical protocol sync** at `/home/dani/opt/docs/freesky/` — truth for Android↔Server wire formats, curve choices, API shapes. Read `PROTOCOL_SYNC.md` first before any cross-boundary work (ECIES, signing, registration, Noise). Overrides stale docs/ if conflict.
 
 ## Environment
 
@@ -67,6 +68,11 @@ Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
 - `app/src/main/keepRules/rules.keep`
 - `encrypt/src/main/keepRules/rules.keep`
 
+## Boundaries
+
+- **Server is off-limits.** Never edit files in `/home/dani/CLionProjects/freesky-server/`. Server changes are user's responsibility.
+- Protocol reference only: `/home/dani/opt/docs/freesky/PROTOCOL_SYNC.md` — read for wire format decisions but never modify server code.
+
 ## Architecture notes
 
 - `:encrypt` module contains the crypto layer — see `docs/android-encryption-guide.md`
@@ -74,5 +80,6 @@ Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
 - Key material must use AndroidKeyStore; never export raw private key bytes
 - Transport security uses Noise IK (see `docs/android-encryption-guide.md` §1)
 - Content encryption uses MLS via `kotlin-mls` (see `docs/android-encryption-guide.md`)
+- EC curve is secp256r1 (AndroidKeyStore constraint). Do NOT add X25519/Ed25519 code — server must match us, not the other way.
 - `:network` depends on `:encrypt` (KeyRotationHandler needs crypto primitives)
 - No DI framework, no navigation framework, no networking library added yet
