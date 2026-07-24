@@ -5,10 +5,12 @@ import com.wingsheep.network.api.ApiClient
 import com.wingsheep.network.api.OkHttpApiClient
 import com.wingsheep.network.rotation.KeyRotationHandler
 import com.wingsheep.network.rotation.RegistrationHandler
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
@@ -24,8 +26,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRegistrationHandler(
-        apiClient: ApiClient
-    ): RegistrationHandler = RegistrationHandler(apiClient = apiClient)
+        apiClient: ApiClient,
+        @ApplicationContext context: Context
+    ): RegistrationHandler = RegistrationHandler(
+        apiClient = apiClient,
+        context = context
+    )
 
     @Provides
     @Singleton

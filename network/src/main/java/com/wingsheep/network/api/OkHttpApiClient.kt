@@ -42,8 +42,8 @@ class OkHttpApiClient(
         }
     }
 
-    override suspend fun register(pkDev: ByteArray): RegisterResponse {
-        val reqBody = RegisterRequest.fromBytes(pkDev)
+    override suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
+        val reqBody = RegisterRequest.fromBytes(pkDev, apkCertSha1)
         val jsonBody = gson.toJson(reqBody)
 
         Timber.d("POST $baseUrl/register")

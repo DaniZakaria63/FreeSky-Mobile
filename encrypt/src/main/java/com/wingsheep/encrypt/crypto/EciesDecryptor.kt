@@ -14,8 +14,12 @@ object EciesDecryptor {
     private const val AES_ALGORITHM = "AES"
     private const val AES_GCM_TRANSFORM = "AES/GCM/NoPadding"
     private const val GCM_TAG_LENGTH_BITS = 128
+    private const val GCM_TAG_LENGTH_BYTES = 16
     private const val AES_KEY_LENGTH_BYTES = 32
     private const val ECDH_ALGORITHM = "ECDH"
+
+    // Matches server's crypto.rs: ecies_decrypt checks encrypted.len() < 65 + 12 + 16
+    private const val MIN_PAYLOAD_LEN = 65 + 12 + GCM_TAG_LENGTH_BYTES
 
     private val KDF_SALT = "freesky-ecies-v1".toByteArray(Charsets.UTF_8)
     private val KDF_INFO = "freesky-group-key".toByteArray(Charsets.UTF_8)
@@ -24,6 +28,10 @@ object EciesDecryptor {
         encryptedPayload: ByteArray,
         privateKey: PrivateKey
     ): ByteArray {
+        require(encryptedPayload.size >= MIN_PAYLOAD_LEN) {
+            "Encrypted payload too short: ${encryptedPayload.size} bytes " +
+                "(need at least $MIN_PAYLOAD_LEN = 65 epk + 12 nonce + 16 GCM tag)"
+        }
         Timber.d("decrypt: payload ${encryptedPayload.size} bytes")
         val pkg = EciesPackage.deserialize(encryptedPayload)
         Timber.d("  epk=${pkg.ephemeralPublicKey.size}B nonce=${pkg.nonce.size}B ct=${pkg.ciphertext.size}B")

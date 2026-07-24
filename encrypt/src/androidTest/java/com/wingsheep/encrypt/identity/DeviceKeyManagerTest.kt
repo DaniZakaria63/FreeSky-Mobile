@@ -2,6 +2,7 @@ package com.wingsheep.encrypt.identity
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -57,6 +58,27 @@ class DeviceKeyManagerTest {
         val bytes = DeviceKeyManager.publicKeyBytes()
         assertNotNull(bytes)
         assertTrue(bytes.isNotEmpty())
+    }
+
+    @Test
+    fun publicKeySec1_returns65ByteSec1Uncompressed() {
+        DeviceKeyManager.generateKeypair()
+        val sec1 = DeviceKeyManager.publicKeySec1()
+
+        assertNotNull(sec1)
+        assertEquals(65, sec1.size)
+        assertEquals(0x04.toByte(), sec1[0])
+    }
+
+    @Test
+    fun publicKeySec1_roundTripWithSec1ToPublicKey() {
+        DeviceKeyManager.generateKeypair()
+        val originalPub = DeviceKeyManager.getPublicKey()
+        val sec1 = DeviceKeyManager.publicKeySec1()
+
+        // Convert SEC1 bytes back to a PublicKey and verify it matches
+        val parsedPub = DeviceKeyManager.sec1ToPublicKey(sec1)
+        assertArrayEquals(originalPub.encoded, parsedPub.encoded)
     }
 
     @Test

@@ -11,5 +11,5 @@ interface ApiClient {
 
     suspend fun fetchNewGroupKey(): NewGroupKeyResponse
 
-    suspend fun register(pkDev: ByteArray): RegisterResponse
+    suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse
 }

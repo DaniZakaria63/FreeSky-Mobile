@@ -62,7 +62,7 @@ class KeyRotationHandler(
         // Step 3: Re-initialise MLS group with new key material
         val initResult = mlsManager.initFromKeyMaterial(
             groupStateBytes = skComm,
-            identityKeyBytes = deviceKeyManager.publicKeyBytes()
+            identityKeyBytes = deviceKeyManager.publicKeySec1()
         )
         if (initResult.isError) {
             return initResult
