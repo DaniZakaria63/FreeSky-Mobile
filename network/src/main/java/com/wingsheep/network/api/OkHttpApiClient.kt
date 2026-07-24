@@ -1,33 +1,18 @@
 package com.wingsheep.network.api
 
+import com.google.gson.Gson
 import com.wingsheep.network.NetworkClient
-import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
+import com.wingsheep.network.model.RegisterRequest
+import com.wingsheep.network.model.RegisterResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import org.json.JSONObject
+import timber.log.Timber
 import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
-/**
- * OkHttp-based implementation of [ApiClient].
- *
- * Uses a single [OkHttpClient] instance (from [NetworkClient])
- * for all requests.  Each API method wraps the callback-based
- * OkHttp API into a Kotlin `suspend` function using
- * [suspendCancellableCoroutine].
- *
- * Usage:
- * ```
- * val client = OkHttpApiClient(baseUrl = "https://api.freesky.app")
- * val response = client.fetchNewGroupKey()
- * ```
- */
 class OkHttpApiClient(
     private val baseUrl: String,
     private val client: OkHttpClient = NetworkClient.defaultClient
@@ -35,17 +20,9 @@ class OkHttpApiClient(
 
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
+        private val gson = Gson()
     }
 
-    /**
-     * Fetches the new encrypted group key from the server.
-     *
-     * Makes a GET request to `{baseUrl}/register` and parses
-     * the JSON response into [ApiClient.NewGroupKeyResponse].
-     *
-     * @throws IOException on network errors
-     * @throws org.json.JSONException on malformed JSON
-     */
     override suspend fun fetchNewGroupKey(): ApiClient.NewGroupKeyResponse {
         val request = Request.Builder()
             .url("$baseUrl/register")
@@ -53,40 +30,45 @@ class OkHttpApiClient(
             .addHeader("Accept", "application/json")
             .build()
 
-        return suspendCancellableCoroutine { cont ->
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    if (!cont.isCancelled) {
-                        cont.resumeWithException(e)
-                    }
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP ${response.code}: ${response.body?.string()}")
                 }
+                val body = response.body?.string()
+                    ?: throw IOException("Empty response body")
+                gson.fromJson(body, ApiClient.NewGroupKeyResponse::class.java)
+            }
+        }
+    }
 
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        val errorBody = response.body?.string()
-                        response.close()
-                        cont.resumeWithException(
-                            IOException("HTTP ${response.code}: $errorBody")
-                        )
-                        return
-                    }
+    override suspend fun register(pkDev: ByteArray): RegisterResponse {
+        val reqBody = RegisterRequest.fromBytes(pkDev)
+        val jsonBody = gson.toJson(reqBody)
 
-                    try {
-                        val body = response.body?.string()
-                            ?: throw IOException("Empty response body")
-                        val json = JSONObject(body)
+        Timber.d("POST $baseUrl/register")
+        Timber.d("Request body: $jsonBody")
 
-                        val result = ApiClient.NewGroupKeyResponse(
-                            encryptedSkComm = json.getString("encrypted_sk_comm"),
-                            serverPublicKey = json.getString("server_public_key")
-                        )
-                        cont.resume(result)
-                    } catch (e: Exception) {
-                        response.close()
-                        cont.resumeWithException(e)
-                    }
+        val request = Request.Builder()
+            .url("$baseUrl/register")
+            .post(jsonBody.toRequestBody(JSON))
+            .addHeader("Accept", "application/json")
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val err = response.body?.string()
+                    Timber.w("Register failed: HTTP ${response.code} — $err")
+                    throw IOException("HTTP ${response.code}: $err")
                 }
-            })
+                val body = response.body?.string()
+                    ?: throw IOException("Empty response body")
+                Timber.d("Response body: ${body.take(200)}...")
+                val result = gson.fromJson(body, RegisterResponse::class.java)
+                Timber.d("Parsed: name=\"${result.name}\" color=${result.color} enc=${result.encrypted_sk_comm.size}B")
+                result
+            }
         }
     }
 }

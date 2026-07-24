@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.wingsheep.encrypt"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.timber)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)

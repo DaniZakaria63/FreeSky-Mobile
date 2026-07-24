@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.wingsheep.network"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -49,6 +49,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.timber)
+    implementation(libs.gson)
+    implementation(libs.tor.android)
+    implementation(libs.jtorctl)
 
     implementation(project(":encrypt"))
 

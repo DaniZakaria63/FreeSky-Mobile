@@ -1,11 +1,12 @@
 package com.wingsheep.freesky
 
 import android.app.Application
-import com.wingsheep.freesky.tor.TorProxyManager
+import com.wingsheep.network.tor.TorProxyManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -17,6 +18,7 @@ class FreeskyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Timber.plant(Timber.DebugTree())
         torProxyManager.start(scope)
     }
 
