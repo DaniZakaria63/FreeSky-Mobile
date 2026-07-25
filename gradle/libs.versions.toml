@@ -20,6 +20,7 @@ jtorctl = "0.4.5.7"
 timber = "5.0.1"
 gson = "2.12.1"
 datastorePreferences = "1.1.4"
+bouncyCastle = "1.85.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -50,6 +51,7 @@ jtorctl = { module = "info.guardianproject:jtorctl", version.ref = "jtorctl" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
+bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncyCastle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

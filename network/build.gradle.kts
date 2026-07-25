@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.tor.android)
     implementation(libs.jtorctl)
+    implementation(libs.bouncycastle)
 
     implementation(project(":encrypt"))
 
