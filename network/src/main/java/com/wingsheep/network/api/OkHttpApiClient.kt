@@ -1,7 +1,10 @@
 package com.wingsheep.network.api
 
 import com.google.gson.Gson
+import com.wingsheep.encrypt.model.EncryptedPost
 import com.wingsheep.network.NetworkClient
+import com.wingsheep.network.model.PostRequest
+import com.wingsheep.network.model.PostResponse
 import com.wingsheep.network.model.RegisterRequest
 import com.wingsheep.network.model.RegisterResponse
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +71,32 @@ class OkHttpApiClient(
                 val result = gson.fromJson(body, RegisterResponse::class.java)
                 Timber.d("Parsed: name=\"${result.name}\" color=${result.color} enc=${result.encrypted_sk_comm.size}B")
                 result
+            }
+        }
+    }
+
+    override suspend fun submitPost(post: EncryptedPost): PostResponse {
+        val reqBody = PostRequest.fromEncryptedPost(post)
+        val jsonBody = gson.toJson(reqBody)
+
+        Timber.d("POST $baseUrl/post")
+        Timber.d("Request body: $jsonBody")
+
+        val request = Request.Builder()
+            .url("$baseUrl/post")
+            .post(jsonBody.toRequestBody(JSON))
+            .addHeader("Accept", "application/json")
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (!response.isSuccessful) {
+                    Timber.w("Post failed: HTTP ${response.code} — $body")
+                    throw IOException("HTTP ${response.code}: $body")
+                }
+                Timber.d("Response body: $body")
+                gson.fromJson(body, PostResponse::class.java)
             }
         }
     }
