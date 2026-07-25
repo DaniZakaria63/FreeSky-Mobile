@@ -47,8 +47,8 @@ internal class NoiseCipherState(
 
     private fun chaChaNonce(n: Long): ByteArray {
         return ByteArray(4) { 0x00 } + byteArrayOf(
-            (n shr 56).toByte(), (n shr 48).toByte(), (n shr 40).toByte(), (n shr 32).toByte(),
-            (n shr 24).toByte(), (n shr 16).toByte(), (n shr 8).toByte(), n.toByte()
+            n.toByte(), (n shr 8).toByte(), (n shr 16).toByte(), (n shr 24).toByte(),
+            (n shr 32).toByte(), (n shr 40).toByte(), (n shr 48).toByte(), (n shr 56).toByte()
         )
     }
 }
@@ -71,10 +71,10 @@ internal fun blake2s(data: ByteArray): ByteArray {
 }
 
 internal fun hkdf(ck: ByteArray, input: ByteArray, count: Int): List<ByteArray> {
-    val temp = hmac(ck, input + byteArrayOf(0x01.toByte()))
-    val out1 = hmac(temp, byteArrayOf(0x02.toByte()))
+    val temp = hmac(ck, input)
+    val out1 = hmac(temp, byteArrayOf(0x01.toByte()))
     if (count == 1) return listOf(out1)
-    val out2 = hmac(temp, out1 + byteArrayOf(0x03.toByte()))
+    val out2 = hmac(temp, out1 + byteArrayOf(0x02.toByte()))
     return listOf(out1, out2)
 }
 

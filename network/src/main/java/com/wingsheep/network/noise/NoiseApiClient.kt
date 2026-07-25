@@ -31,7 +31,7 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
             "ciphertext_comm" to post.ciphertextComm.map { it.toInt() and 0xFF },
             "author_pk" to post.authorPk.map { it.toInt() and 0xFF },
             "author_sig" to post.authorSig.map { it.toInt() and 0xFF },
-            "timestamp" to post.timestamp,
+            "timestamp" to post.timestamp / 1000,
             "mls_epoch" to post.mlsEpoch
         ))
         val wrapped = gson.apiResponseFrom<Any?>(json)
