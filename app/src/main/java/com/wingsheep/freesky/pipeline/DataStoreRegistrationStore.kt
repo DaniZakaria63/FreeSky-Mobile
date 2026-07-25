@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.wingsheep.freesky.model.RegistrationStore
 import com.wingsheep.freesky.model.RegistrationUiState
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -54,18 +55,10 @@ class DataStoreRegistrationStore @Inject constructor(
     }
 
     override suspend fun loadGroupKey(): ByteArray? {
-        var key: ByteArray? = null
-        dataStore.edit { prefs ->
-            key = prefs[KEY_GROUP_KEY]
-        }
-        return key
+        return dataStore.data.first()[KEY_GROUP_KEY]
     }
 
     override suspend fun loadServerNoisePk(): ByteArray? {
-        var pk: ByteArray? = null
-        dataStore.edit { prefs ->
-            pk = prefs[KEY_SERVER_NOISE_PK]
-        }
-        return pk
+        return dataStore.data.first()[KEY_SERVER_NOISE_PK]
     }
 }

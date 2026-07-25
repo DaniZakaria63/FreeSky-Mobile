@@ -61,11 +61,11 @@ class RegistrationViewModel @Inject constructor(
             _state.value = RegistrationUiState.Checking
             try {
                 val result = registrationHandler.register()
-                // Persist identity
-                registrationStore.save(name = result.name, color = result.color)
-                // Persist crypto material
+                // Persist crypto material FIRST — before identity triggers navigation
                 registrationStore.saveGroupKey(result.groupKey)
                 result.serverNoisePk?.let { registrationStore.saveServerNoisePk(it) }
+                // Persist identity LAST — so CommunityViewModel sees complete DataStore state
+                registrationStore.save(name = result.name, color = result.color)
                 // Initialize MLS group with the decrypted group key
                 val pkSec1 = registrationHandler.deviceKeyManager.publicKeySec1()
                 val initResult = mlsGroupManager.initFromKeyMaterial(
