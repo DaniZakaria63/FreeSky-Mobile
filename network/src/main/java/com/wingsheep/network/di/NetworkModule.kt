@@ -2,6 +2,7 @@ package com.wingsheep.network.di
 
 import com.wingsheep.network.api.ApiClient
 import com.wingsheep.network.api.OkHttpApiClient
+import com.wingsheep.network.noise.NoiseSessionFactory
 import com.wingsheep.network.rotation.RegistrationHandler
 import android.content.Context
 import dagger.Module
@@ -30,4 +31,9 @@ object NetworkModule {
         apiClient = apiClient,
         context = context
     )
+
+    @Provides
+    @Singleton
+    fun provideNoiseSessionFactory(): NoiseSessionFactory =
+        NoiseSessionFactory(host = "192.168.0.103", port = 9443)
 }

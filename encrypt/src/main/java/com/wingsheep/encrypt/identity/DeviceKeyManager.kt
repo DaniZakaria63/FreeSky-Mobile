@@ -60,8 +60,6 @@ object DeviceKeyManager {
         return entry.privateKey
     }
 
-    fun publicKeyBytes(): ByteArray = getPublicKey().encoded
-
     fun publicKeySec1(): ByteArray {
         val pubKey = getPublicKey() as java.security.interfaces.ECPublicKey
         val w = pubKey.w
@@ -92,7 +90,7 @@ object DeviceKeyManager {
         return sig.verify(signature)
     }
 
-    internal fun sec1ToPublicKey(sec1: ByteArray): PublicKey {
+    fun sec1ToPublicKey(sec1: ByteArray): PublicKey {
         require(sec1.size == 65) {
             "Expected 65-byte SEC1 uncompressed key, got ${sec1.size}"
         }
