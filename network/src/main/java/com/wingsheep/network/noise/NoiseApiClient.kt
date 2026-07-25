@@ -3,6 +3,7 @@ package com.wingsheep.network.noise
 import com.google.gson.Gson
 import com.wingsheep.encrypt.model.EncryptedPost
 import com.wingsheep.network.model.FeedData
+import com.wingsheep.network.model.NewGroupKeyData
 import com.wingsheep.network.model.PostResponse
 import com.wingsheep.network.model.RegisterRequest
 import com.wingsheep.network.model.RegisterResponse
@@ -36,6 +37,13 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
         val wrapped = gson.apiResponseFrom<Any?>(json)
         Timber.d("Noise post result: ${wrapped.message}")
         return PostResponse(message = wrapped.message)
+    }
+
+    suspend fun fetchNewGroupKey(): NewGroupKeyData {
+        val json = noiseManager.sendRequest("new_group_key", emptyMap())
+        val wrapped = gson.apiResponseFrom<NewGroupKeyData>(json)
+        return wrapped.data
+            ?: throw IOException("Noise new_group_key failed: ${wrapped.message}")
     }
 
     suspend fun getFeed(cursor: Long? = null, limit: Int = 20): FeedData {
