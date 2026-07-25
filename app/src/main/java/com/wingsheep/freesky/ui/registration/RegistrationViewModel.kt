@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wingsheep.freesky.model.RegistrationStore
 import com.wingsheep.freesky.model.RegistrationUiState
+import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.network.rotation.RegistrationHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RegistrationViewModel @Inject constructor(
     private val registrationHandler: RegistrationHandler,
-    private val registrationStore: RegistrationStore
+    private val registrationStore: RegistrationStore,
+    private val mlsGroupManager: MlsGroupManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RegistrationUiState>(RegistrationUiState.Checking)
@@ -30,6 +32,19 @@ class RegistrationViewModel @Inject constructor(
             registrationStore.registrationState.collect { storeState ->
                 if (storeState is RegistrationUiState.Registered) {
                     Timber.i("Already registered: name=\"${storeState.name}\" color=${storeState.color}")
+                    // Restore MLS group state from persisted group key
+                    val restoreResult = mlsGroupManager.restoreFromStorage()
+                    if (restoreResult.isSuccess) {
+                        Timber.i("MLS group restored from storage")
+                    } else {
+                        // Fallback: load key from DataStore and init
+                        val groupKey = registrationStore.loadGroupKey()
+                        if (groupKey != null && groupKey.size == 32) {
+                            val pkSec1 = registrationHandler.deviceKeyManager.publicKeySec1()
+                            val initResult = mlsGroupManager.initFromKeyMaterial(groupKey, pkSec1)
+                            Timber.i("MLS group init from DataStore: ${if (initResult.isSuccess) "ok" else "failed"}")
+                        }
+                    }
                 }
                 _state.value = storeState
             }
@@ -46,7 +61,18 @@ class RegistrationViewModel @Inject constructor(
             _state.value = RegistrationUiState.Checking
             try {
                 val result = registrationHandler.register()
+                // Persist identity
                 registrationStore.save(name = result.name, color = result.color)
+                // Persist crypto material
+                registrationStore.saveGroupKey(result.groupKey)
+                result.serverNoisePk?.let { registrationStore.saveServerNoisePk(it) }
+                // Initialize MLS group with the decrypted group key
+                val pkSec1 = registrationHandler.deviceKeyManager.publicKeySec1()
+                val initResult = mlsGroupManager.initFromKeyMaterial(
+                    groupStateBytes = result.groupKey,
+                    identityKeyBytes = pkSec1
+                )
+                Timber.i("MLS group init: ${if (initResult.isSuccess) "ok" else "failed"}")
                 Timber.i("Registered as: ${result.name} (color=${result.color})")
             } catch (e: Exception) {
                 Timber.e(e, "Registration failed")

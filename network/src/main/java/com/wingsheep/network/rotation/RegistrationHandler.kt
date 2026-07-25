@@ -11,13 +11,14 @@ import java.security.MessageDigest
 data class RegistrationResult(
     val name: String,
     val color: Int,
-    val groupKey: ByteArray
+    val groupKey: ByteArray,
+    val serverNoisePk: ByteArray?
 )
 
 class RegistrationHandler(
     private val apiClient: ApiClient,
     private val context: Context,
-    private val deviceKeyManager: DeviceKeyManager = DeviceKeyManager,
+    val deviceKeyManager: DeviceKeyManager = DeviceKeyManager,
     private val eciesDecryptor: EciesDecryptor = EciesDecryptor
 ) {
     suspend fun register(): RegistrationResult {
@@ -39,6 +40,13 @@ class RegistrationHandler(
         Timber.i("encrypted_sk_comm: ${encBytes.size} bytes")
         Timber.i("encrypted_sk_comm hex: ${encBytes.joinToString("") { "%02x".format(it) }}")
 
+        val serverNoisePk = response.serverNoisePkBytes()
+        if (serverNoisePk != null) {
+            Timber.i("server_noise_pk: ${serverNoisePk.size} bytes")
+        } else {
+            Timber.w("server_noise_pk missing from register response")
+        }
+
         Timber.i("ECIES decrypting group key...")
         val groupKey = eciesDecryptor.decrypt(
             encryptedPayload = encBytes,
@@ -51,7 +59,8 @@ class RegistrationHandler(
         return RegistrationResult(
             name = response.name,
             color = response.color,
-            groupKey = groupKey
+            groupKey = groupKey,
+            serverNoisePk = serverNoisePk
         )
     }
 
@@ -61,10 +70,11 @@ class RegistrationHandler(
      * Uses [PackageManager.GET_SIGNING_CERTIFICATES] to retrieve the signing
      * cert, then SHA-1 digests it. This is sent to the server so it can
      * verify the request comes from the trusted app (debug or release).
+     * Also used as the Noise IK prologue.
      *
      * Reference: [Registration API Contract — apk_cert_sha1 field]
      */
-    internal fun computeApkCertSha1(): String {
+    fun computeApkCertSha1(): String {
         val certBytes: ByteArray
         if (android.os.Build.VERSION.SDK_INT >= 28) {
             val packageInfo = context.packageManager.getPackageInfo(

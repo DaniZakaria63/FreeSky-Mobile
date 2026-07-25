@@ -2,6 +2,7 @@ package com.wingsheep.freesky.pipeline
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.byteArrayPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -20,6 +21,8 @@ class DataStoreRegistrationStore @Inject constructor(
     private companion object {
         val KEY_NAME = stringPreferencesKey("user_name")
         val KEY_COLOR = intPreferencesKey("user_color")
+        val KEY_GROUP_KEY = byteArrayPreferencesKey("group_key")
+        val KEY_SERVER_NOISE_PK = byteArrayPreferencesKey("server_noise_pk")
     }
 
     override val registrationState: Flow<RegistrationUiState> = dataStore.data.map { prefs ->
@@ -36,5 +39,33 @@ class DataStoreRegistrationStore @Inject constructor(
             prefs[KEY_NAME] = name
             prefs[KEY_COLOR] = color
         }
+    }
+
+    override suspend fun saveGroupKey(groupKey: ByteArray) {
+        dataStore.edit { prefs ->
+            prefs[KEY_GROUP_KEY] = groupKey
+        }
+    }
+
+    override suspend fun saveServerNoisePk(pk: ByteArray) {
+        dataStore.edit { prefs ->
+            prefs[KEY_SERVER_NOISE_PK] = pk
+        }
+    }
+
+    override suspend fun loadGroupKey(): ByteArray? {
+        var key: ByteArray? = null
+        dataStore.edit { prefs ->
+            key = prefs[KEY_GROUP_KEY]
+        }
+        return key
+    }
+
+    override suspend fun loadServerNoisePk(): ByteArray? {
+        var pk: ByteArray? = null
+        dataStore.edit { prefs ->
+            pk = prefs[KEY_SERVER_NOISE_PK]
+        }
+        return pk
     }
 }

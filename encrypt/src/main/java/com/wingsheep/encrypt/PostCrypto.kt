@@ -26,9 +26,11 @@ object PostCrypto {
         }
         val ciphertext = encryptResult.getOrThrow()
 
-        val hash = MessageDigest.getInstance("SHA-256").digest(ciphertext)
+        // Sign the RAW ciphertext. SHA256withECDSA hashes once internally,
+        // matching server's p256 ecdsa_verify (crypto.rs:134) which also hashes once.
+        // Pre-hashing here would cause a double-hash and server rejection.
         val signature = try {
-            deviceKeyManager.sign(hash)
+            deviceKeyManager.sign(ciphertext)
         } catch (e: Exception) {
             Log.w(TAG, "Signing failed", e)
             return null
@@ -57,9 +59,9 @@ object PostCrypto {
         authorPublicKey: PublicKey,
         deviceKeyManager: DeviceKeyManager = DeviceKeyManager
     ): String? {
-        val hash = MessageDigest.getInstance("SHA-256").digest(post.ciphertextComm)
+        // Verify signature over RAW ciphertext (matches createPost + server verify).
         val signatureValid = try {
-            deviceKeyManager.verify(hash, post.authorSig, authorPublicKey)
+            deviceKeyManager.verify(post.ciphertextComm, post.authorSig, authorPublicKey)
         } catch (e: Exception) {
             Log.w(TAG, "Signature verification error", e)
             false
