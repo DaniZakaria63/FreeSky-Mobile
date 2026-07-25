@@ -22,6 +22,9 @@ class RegistrationViewModel @Inject constructor(
     private val _state = MutableStateFlow<RegistrationUiState>(RegistrationUiState.Checking)
     val state: StateFlow<RegistrationUiState> = _state.asStateFlow()
 
+    private val _consentGiven = MutableStateFlow(false)
+    val consentGiven: StateFlow<Boolean> = _consentGiven.asStateFlow()
+
     init {
         viewModelScope.launch {
             registrationStore.registrationState.collect { storeState ->
@@ -31,6 +34,10 @@ class RegistrationViewModel @Inject constructor(
                 _state.value = storeState
             }
         }
+    }
+
+    fun toggleConsent() {
+        _consentGiven.value = !_consentGiven.value
     }
 
     fun register() {

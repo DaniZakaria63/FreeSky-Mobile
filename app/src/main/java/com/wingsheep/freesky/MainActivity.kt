@@ -38,7 +38,10 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding)
                         )
                     } else {
-                        RegistrationScreen(viewModel = viewModel)
+                        RegistrationScreen(
+                            viewModel = viewModel,
+                            contentPadding = innerPadding
+                        )
                     }
                 }
             }
