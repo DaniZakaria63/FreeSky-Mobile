@@ -44,7 +44,7 @@ object PostCrypto {
 
         return EncryptedPost(
             ciphertextComm = ciphertext,
-            authorPk = deviceKeyManager.publicKeyBytes(),
+            authorPk = deviceKeyManager.publicKeySec1(),
             authorSig = signature,
             timestamp = System.currentTimeMillis(),
             mlsEpoch = epoch

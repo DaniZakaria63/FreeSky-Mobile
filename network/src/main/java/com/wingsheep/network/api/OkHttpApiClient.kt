@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.wingsheep.network.NetworkClient
 import com.wingsheep.network.model.RegisterRequest
 import com.wingsheep.network.model.RegisterResponse
+import com.wingsheep.network.model.apiResponseFrom
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,27 +24,8 @@ class OkHttpApiClient(
         private val gson = Gson()
     }
 
-    override suspend fun fetchNewGroupKey(): ApiClient.NewGroupKeyResponse {
-        val request = Request.Builder()
-            .url("$baseUrl/register")
-            .get()
-            .addHeader("Accept", "application/json")
-            .build()
-
-        return withContext(Dispatchers.IO) {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code}: ${response.body?.string()}")
-                }
-                val body = response.body?.string()
-                    ?: throw IOException("Empty response body")
-                gson.fromJson(body, ApiClient.NewGroupKeyResponse::class.java)
-            }
-        }
-    }
-
-    override suspend fun register(pkDev: ByteArray): RegisterResponse {
-        val reqBody = RegisterRequest.fromBytes(pkDev)
+    override suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
+        val reqBody = RegisterRequest.fromBytes(pkDev, apkCertSha1)
         val jsonBody = gson.toJson(reqBody)
 
         Timber.d("POST $baseUrl/register")
@@ -65,9 +47,11 @@ class OkHttpApiClient(
                 val body = response.body?.string()
                     ?: throw IOException("Empty response body")
                 Timber.d("Response body: ${body.take(200)}...")
-                val result = gson.fromJson(body, RegisterResponse::class.java)
-                Timber.d("Parsed: name=\"${result.name}\" color=${result.color} enc=${result.encrypted_sk_comm.size}B")
-                result
+                val wrapped = gson.apiResponseFrom<RegisterResponse>(body)
+                val data = wrapped.data
+                    ?: throw IOException("Register failed: ${wrapped.message}")
+                Timber.d("Parsed: name=\"${data.name}\" color=${data.color} enc=${data.encrypted_sk_comm.size}B noisePk=${data.serverNoisePkBytes()?.size}B")
+                data
             }
         }
     }

@@ -62,6 +62,61 @@ class EciesDecryptorTest {
         assertArrayEquals(plaintext, decrypted)
     }
 
+    @Test
+    fun endToEnd_registerFlow_recovers32ByteGroupKey() {
+        // Simulates the full POST /register → ECIES decrypt flow:
+        //   1. Device generates secp256r1 keypair, sends 65-byte SEC1 pk_dev
+        //   2. Server encrypts 32-byte group key via ecies_encrypt (crypto.rs)
+        //   3. Android EciesDecryptor.decrypt recovers the group key
+        //
+        // The server's ecies_encrypt (crypto.rs) does:
+        //   shared_secret = ECDH(ek_s, pk_dev)       // secp256r1
+        //   aes_key = HKDF-SHA256(shared_secret, "freesky-ecies-v1", "freesky-group-key", 32)
+        //   ciphertext = AES-256-GCM(aes_key, nonce, plaintext)  // includes 16-byte tag
+        //   wire = epk_SEC1(65) || nonce(12) || ciphertext
+
+        // Step 1: Device keypair (what DeviceKeyManager generates)
+        val deviceKp = generateEcKeyPair()
+        val devicePubSec1 = publicKeyToSec1(deviceKp.public)
+        assertEquals(65, devicePubSec1.size)
+        assertEquals(0x04.toByte(), devicePubSec1[0])
+
+        // Step 2: Server-side ecies_encrypt simulation
+        val ephemeralKp = generateEcKeyPair()
+        val sharedSecret = performEcdh(ephemeralKp.private, deviceKp.public)
+        val aesKey = Hkdf.deriveKey(
+            salt = "freesky-ecies-v1".toByteArray(Charsets.UTF_8),
+            ikm = sharedSecret,
+            info = "freesky-group-key".toByteArray(Charsets.UTF_8),
+            length = 32
+        )
+
+        // The "group key" is 32 random bytes (matches server's get_or_create_group_key)
+        val groupKey = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val nonce = ByteArray(12).also { SecureRandom().nextBytes(it) }
+        val ciphertext = aesGcmEncrypt(aesKey, nonce, groupKey)
+
+        // Wire format: [65 epk][12 nonce][ciphertext (plaintext + 16-byte tag)]
+        val encryptedSkComm = publicKeyToSec1(ephemeralKp.public) + nonce + ciphertext
+        assertEquals(65 + 12 + 32 + 16, encryptedSkComm.size)
+
+        // Step 3: Android decryption
+        val decryptedGroupKey = EciesDecryptor.decrypt(encryptedSkComm, deviceKp.private)
+
+        // Verify we recovered the exact 32-byte group key
+        assertEquals(32, decryptedGroupKey.size)
+        assertArrayEquals(groupKey, decryptedGroupKey)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun decrypt_payloadBelowServerMin_throws() {
+        // Payload of 80 bytes: 65 epk + 12 nonce + 3 ciphertext
+        // Server requires >= 93 (65 + 12 + 16 GCM tag). Should throw.
+        val deviceKp = generateEcKeyPair()
+        val payload = ByteArray(80)
+        EciesDecryptor.decrypt(payload, deviceKp.private)
+    }
+
     @Test(expected = EciesDecryptionException::class)
     fun decrypt_withWrongKey_throws() {
         val recipientKp = generateEcKeyPair()
