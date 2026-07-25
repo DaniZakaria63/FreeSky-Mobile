@@ -23,10 +23,6 @@ import org.junit.runner.RunWith
 class RegistrationHandlerTest {
 
     private val fakeApiClient = object : ApiClient {
-        override suspend fun fetchNewGroupKey(): ApiClient.NewGroupKeyResponse {
-            throw UnsupportedOperationException("Not used in this test")
-        }
-
         override suspend fun register(
             pkDev: ByteArray,
             apkCertSha1: String

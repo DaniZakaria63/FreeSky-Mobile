@@ -1,9 +1,7 @@
 package com.wingsheep.network.di
 
-import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.network.api.ApiClient
 import com.wingsheep.network.api.OkHttpApiClient
-import com.wingsheep.network.rotation.KeyRotationHandler
 import com.wingsheep.network.rotation.RegistrationHandler
 import android.content.Context
 import dagger.Module
@@ -31,15 +29,5 @@ object NetworkModule {
     ): RegistrationHandler = RegistrationHandler(
         apiClient = apiClient,
         context = context
-    )
-
-    @Provides
-    @Singleton
-    fun provideKeyRotationHandler(
-        apiClient: ApiClient,
-        mlsManager: MlsGroupManager
-    ): KeyRotationHandler = KeyRotationHandler(
-        apiClient = apiClient,
-        mlsManager = mlsManager
     )
 }

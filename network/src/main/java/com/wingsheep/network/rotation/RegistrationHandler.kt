@@ -65,15 +65,27 @@ class RegistrationHandler(
      * Reference: [Registration API Contract — apk_cert_sha1 field]
      */
     internal fun computeApkCertSha1(): String {
-        val packageInfo = context.packageManager.getPackageInfo(
-            context.packageName,
-            PackageManager.GET_SIGNING_CERTIFICATES
-        )
-        val signingInfo = packageInfo.signingInfo
-            ?: throw IllegalStateException("No signing info available for ${context.packageName}")
-        val cert = signingInfo.apkContentsSigners[0]
+        val certBytes: ByteArray
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            val packageInfo = context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNING_CERTIFICATES
+            )
+            val signingInfo = packageInfo.signingInfo
+                ?: throw IllegalStateException("No signing info for ${context.packageName}")
+            certBytes = signingInfo.apkContentsSigners[0].toByteArray()
+        } else {
+            @Suppress("DEPRECATION")
+            val packageInfo = context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNATURES
+            )
+            val signatures = packageInfo.signatures
+                ?: throw IllegalStateException("No signatures for ${context.packageName}")
+            certBytes = signatures[0].toByteArray()
+        }
         val md = MessageDigest.getInstance("SHA-1")
-        val sha1 = md.digest(cert.toByteArray())
+        val sha1 = md.digest(certBytes)
         return sha1.joinToString("") { "%02X".format(it) }
     }
 }
