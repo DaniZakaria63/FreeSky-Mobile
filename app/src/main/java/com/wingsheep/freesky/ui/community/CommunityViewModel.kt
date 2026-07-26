@@ -8,6 +8,8 @@ import com.wingsheep.encrypt.identity.IdentityDeriver
 import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.encrypt.model.EncryptedPost
 import com.wingsheep.freesky.model.RegistrationStore
+import com.wingsheep.network.model.Notification
+import com.wingsheep.network.noise.NotificationListener
 import com.wingsheep.network.noise.NoiseApiClient
 import com.wingsheep.network.noise.NoiseSessionFactory
 import com.wingsheep.network.rotation.RegistrationHandler
@@ -83,6 +85,22 @@ class CommunityViewModel @Inject constructor(
                 noiseClient = client
                 _connectionState.value = CommunityUiState.Connected
                 Timber.i("Noise session established — loading feed")
+
+                // Subscribe to real-time notifications from the server.
+                // When another client posts, the server pushes a "new_post"
+                // notification over the Noise transport. We respond by
+                // refreshing the feed.
+                client.setNotificationListener(object : NotificationListener {
+                    override fun onNotification(notification: Notification) {
+                        if (notification.type == "new_post") {
+                            Timber.d("Received new_post notification (ts=${notification.timestamp})")
+                            viewModelScope.launch {
+                                refreshFeed()
+                            }
+                        }
+                    }
+                })
+
                 loadFeed()
             } catch (e: Exception) {
                 Timber.e(e, "Noise session failed")
@@ -108,6 +126,31 @@ class CommunityViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Feed load failed")
             }
+        }
+    }
+
+    /**
+     * Refresh the feed from the top — used when a real-time "new_post"
+     * notification arrives. Fetches the newest posts and prepends any
+     * that aren't already in the list.
+     */
+    private suspend fun refreshFeed() {
+        val client = noiseClient ?: return
+        try {
+            val feed = client.getFeed(cursor = null, limit = pageSize)
+            val decrypted = feed.posts.mapNotNull { decryptPostEntry(it) }
+
+            // Prepend new posts that aren't already in the list.
+            val existingIds = _posts.value.map { it.id }.toSet()
+            val newPosts = decrypted.filter { it.id !in existingIds }
+            if (newPosts.isNotEmpty()) {
+                _posts.value = newPosts + _posts.value
+                nextCursor = feed.next_cursor
+                _hasMore.value = feed.next_cursor != null
+                Timber.i("Feed refreshed: +${newPosts.size} new posts")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Feed refresh failed")
         }
     }
 
@@ -157,14 +200,6 @@ class CommunityViewModel @Inject constructor(
                 val response = client.submitPost(encryptedPost)
                 if (response.message == "success") {
                     _postAction.value = PostActionState.Sent
-                    val ownPost = DecryptedPost(
-                        id = -1L,
-                        content = content,
-                        authorIdentity = IdentityDeriver.deriveIdentity(encryptedPost.authorPk),
-                        timestamp = System.currentTimeMillis(),
-                        mlsEpoch = encryptedPost.mlsEpoch
-                    )
-                    _posts.value = listOf(ownPost) + _posts.value
                 } else {
                     _postAction.value = PostActionState.Failed(response.message)
                 }
@@ -216,6 +251,7 @@ class CommunityViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        noiseClient?.setNotificationListener(null)
         noiseClient?.close()
     }
 }
