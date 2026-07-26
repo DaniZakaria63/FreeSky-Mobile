@@ -22,7 +22,7 @@ Most "private" apps ask you to trust them. Freesky doesn't ask for trust — it 
 
 **The group key is shared knowledge.** Every member of your community has it. It's the secret that lets you read each other's posts. It's also rotatable — if someone leaves or gets compromised, the server pushes a new one. Old posts stay readable with the old epoch's key.
 
-**Writing a post is a three-step dance.** Encrypt the content with AES-256-GCM using the group key. Sign the ciphertext with your ECDSA key so everyone knows it's really you (well, your pseudonym). Ship the whole thing through a Noise IK encrypted tunnel — ChaCha20Poly1305 over TCP, forward-secret, authenticated.
+**Writing a post is a three-step dance.** Encrypt the content with AES-256-GCM using the group key. Sign the ciphertext with your ECDSA key so everyone knows it's really you (well, your pseudonym). Ship the whole thing through a Noise NK encrypted tunnel — ChaCha20Poly1305 over TCP, forward-secret, authenticated.
 
 **Reading the feed is the same dance in reverse.** The Noise tunnel brings you blobs. Verify each author's signature using their public key. Decrypt with the group key. Derive their display name from their public key via SHA-256. Render. Repeat.
 
@@ -36,7 +36,7 @@ The curve is secp256r1. Not because it's the best, but because AndroidKeyStore m
 
 Content encryption runs on AES-256-GCM with random 12-byte nonces per post. The group key exchange uses ECIES: ECDH to agree on a shared secret, HKDF fed through HMAC-SHA256 to stretch it, then AES-256-GCM to encrypt the actual key material.
 
-Transport security is Noise IK with P256, ChaChaPoly, and BLAKE2s. The IK pattern means the client knows the server's static key in advance (learned during registration), enabling a zero-round-trip handshake on reconnect. The prologue is your APK signing certificate hash — tying the app binary to the session.
+Transport security is Noise NK with P256, ChaChaPoly, and BLAKE2s. The NK pattern means the client knows the server's static key in advance (learned during registration). The prologue is your APK signing certificate hash — tying the app binary to the session.
 
 Tor runs in-process via Guardian Project's TorService. All HTTP traffic routes through the SOCKS proxy. Nobody gets your IP.
 
@@ -52,7 +52,7 @@ Three Gradle modules, each with one job.
 
 `encrypt` is the crypto layer with no networking. AndroidKeyStore wrappers, ECIES, HKDF, the MLS stand-in (AES-256-GCM for now), identity derivation. Hilt-wired. No OkHttp, no Tor, no JSON.
 
-`network` is the single source of truth for HTTP. OkHttpClient provider, Noise protocol implementation (raw TCP with the full IK handshake), session management, key rotation handler, Tor lifecycle. Every API call, whether REST or Noise, goes through this module.
+`network` is the single source of truth for HTTP. OkHttpClient provider, Noise protocol implementation (raw TCP with the full NK handshake), session management, key rotation handler, Tor lifecycle. Every API call, whether REST or Noise, goes through this module.
 
 No DI framework beyond Hilt. No navigation framework. No networking library beyond OkHttp and raw sockets for Noise.
 

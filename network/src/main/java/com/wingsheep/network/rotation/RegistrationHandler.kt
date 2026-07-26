@@ -70,7 +70,7 @@ class RegistrationHandler(
      * Uses [PackageManager.GET_SIGNING_CERTIFICATES] to retrieve the signing
      * cert, then SHA-1 digests it. This is sent to the server so it can
      * verify the request comes from the trusted app (debug or release).
-     * Also used as the Noise IK prologue.
+     * Also used as the Noise NK prologue.
      *
      * Reference: [Registration API Contract — apk_cert_sha1 field]
      */

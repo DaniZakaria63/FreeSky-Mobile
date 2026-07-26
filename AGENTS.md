@@ -78,7 +78,7 @@ Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
 - `:encrypt` module contains the crypto layer — see `docs/android-encryption-guide.md`
 - `:network` module is the single source of truth for all HTTP — uses OkHttp client
 - Key material must use AndroidKeyStore; never export raw private key bytes
-- Transport security uses Noise IK (see `docs/android-encryption-guide.md` §1)
+- Transport security uses Noise NK (see `docs/android-encryption-guide.md` §1)
 - Content encryption uses MLS via `kotlin-mls` (see `docs/android-encryption-guide.md`)
 - EC curve is secp256r1 (AndroidKeyStore constraint). Do NOT add X25519/Ed25519 code — server must match us, not the other way.
 - `:network` depends on `:encrypt` (KeyRotationHandler needs crypto primitives)

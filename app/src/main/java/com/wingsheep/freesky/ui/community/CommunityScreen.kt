@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -74,6 +75,7 @@ fun CommunityScreen(
             .fillMaxSize()
             .background(TerminalBackground)
             .padding(contentPadding)
+            .imePadding()
     ) {
         Column(
             modifier = Modifier
@@ -174,7 +176,7 @@ private fun ConnectingPanel() {
             )
             TerminalText("  establishing noise session...", color = TerminalDim, modifier = Modifier.padding(start = 8.dp))
         }
-        TerminalText("> noise IK handshake [secp256r1 + ChaChaPoly + BLAKE2s]", color = TerminalDim)
+        TerminalText("> noise NK handshake [secp256r1 + ChaChaPoly + BLAKE2s]", color = TerminalDim)
         TerminalText("> loading group key...", color = TerminalDim)
     }
 }
