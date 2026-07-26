@@ -48,6 +48,9 @@ class CommunityViewModel @Inject constructor(
     private var noiseClient: NoiseApiClient? = null
     private var nextCursor: Long? = null
     private val pageSize: Int = 20
+    private val localPkSec1: ByteArray by lazy {
+        registrationHandler.deviceKeyManager.publicKeySec1()
+    }
 
     init {
         connect()
@@ -240,12 +243,15 @@ class CommunityViewModel @Inject constructor(
             authorPublicKey = authorPublicKey
         ) ?: return null
 
+        val isMine = authorPk.contentEquals(localPkSec1)
+
         return DecryptedPost(
             id = entry.id,
             content = plaintext,
             authorIdentity = IdentityDeriver.deriveIdentity(authorPk),
             timestamp = entry.timestamp * 1000,
-            mlsEpoch = entry.mls_epoch
+            mlsEpoch = entry.mls_epoch,
+            isMine = isMine
         )
     }
 

@@ -14,7 +14,8 @@ data class DecryptedPost(
     val content: String,
     val authorIdentity: Identity,
     val timestamp: Long,
-    val mlsEpoch: Long
+    val mlsEpoch: Long,
+    val isMine: Boolean = false
 )
 
 sealed class CommunityUiState {

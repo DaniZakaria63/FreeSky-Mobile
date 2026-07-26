@@ -8,16 +8,19 @@ import java.security.MessageDigest
  * Mirrors the server's deterministic identity derivation
  * (`shared/src/crypto.rs` — `derive_name` / `derive_color`):
  *   hash   = SHA-256(pk_dev)
- *   name   = hex(hash[0..12])
+ *   name   = COMMON_OBJECTS[ (hash[0].toInt() and 0xFF) * 256 + (hash[1].toInt() and 0xFF) % COMMON_OBJECTS.size ]
  *   color  = hash[0] % 16
  *
- * Used by the feed UI to show author identity without a lookup round-trip.
+ * Name uses a wordlist of common objects instead of hex for readability.
  */
 object IdentityDeriver {
 
     fun deriveName(pkDevSec1: ByteArray): String {
         val hash = sha256(pkDevSec1)
-        return hash.copyOfRange(0, 12).joinToString("") { "%02x".format(it) }
+        return hash.copyOfRange(0, 8).joinToString("") { b ->
+            val printable = 0x21 + ((b.toInt() and 0xFF) % 0x5E) // map to !..~
+            printable.toChar().toString()
+        }
     }
 
     fun deriveColor(pkDevSec1: ByteArray): Int {

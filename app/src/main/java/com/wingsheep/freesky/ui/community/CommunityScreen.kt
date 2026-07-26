@@ -58,6 +58,7 @@ import com.wingsheep.freesky.ui.theme.TerminalSuccess
 import com.wingsheep.freesky.ui.theme.TerminalSurface
 import com.wingsheep.freesky.ui.theme.TerminalTitle
 import com.wingsheep.freesky.ui.theme.TerminalWarning
+import com.wingsheep.freesky.ui.theme.terminalColor
 
 @Composable
 fun CommunityScreen(
@@ -293,7 +294,7 @@ private fun EndOfFeedItem() {
 
 @Composable
 private fun PostItem(post: DecryptedPost) {
-    val colorHex = "#${post.authorIdentity.color.toString(16).padStart(2, '0')}"
+    val authorColor = terminalColor(post.authorIdentity.color)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -308,18 +309,20 @@ private fun PostItem(post: DecryptedPost) {
         ) {
             Text(
                 text = post.authorIdentity.name,
-                color = TerminalAccent,
+                color = authorColor,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
             )
-            Text(
-                text = "·c$colorHex·e${post.mlsEpoch}",
-                color = TerminalDim,
-                fontSize = 9.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                modifier = Modifier.weight(1f)
-            )
+            if (post.isMine) {
+                Text(
+                    text = "me",
+                    color = TerminalAccent,
+                    fontSize = 9.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = formatTime(post.timestamp),
                 color = TerminalDim,
