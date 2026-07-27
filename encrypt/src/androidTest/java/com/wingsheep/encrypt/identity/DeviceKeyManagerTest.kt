@@ -55,7 +55,7 @@ class DeviceKeyManagerTest {
     @Test
     fun publicKeyBytes_returnsNonEmptyArray() {
         DeviceKeyManager.generateKeypair()
-        val bytes = DeviceKeyManager.publicKeyBytes()
+        val bytes = DeviceKeyManager.getPublicKey().encoded
         assertNotNull(bytes)
         assertTrue(bytes.isNotEmpty())
     }

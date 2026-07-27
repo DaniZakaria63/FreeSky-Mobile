@@ -15,6 +15,16 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
 
     private val gson = Gson()
 
+    /**
+     * Register a listener for unsolicited server notifications (e.g. "new_post").
+     *
+     * The listener is invoked on a background thread. Call this after
+     * [NoiseSessionFactory.establishSession] returns.
+     */
+    fun setNotificationListener(listener: NotificationListener?) {
+        noiseManager.setNotificationListener(listener)
+    }
+
     suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
         val reqBody = RegisterRequest.fromBytes(pkDev, apkCertSha1)
         val json = noiseManager.sendRequest("register", mapOf(
@@ -31,7 +41,7 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
             "ciphertext_comm" to post.ciphertextComm.map { it.toInt() and 0xFF },
             "author_pk" to post.authorPk.map { it.toInt() and 0xFF },
             "author_sig" to post.authorSig.map { it.toInt() and 0xFF },
-            "timestamp" to post.timestamp,
+            "timestamp" to post.timestamp / 1000,
             "mls_epoch" to post.mlsEpoch
         ))
         val wrapped = gson.apiResponseFrom<Any?>(json)
