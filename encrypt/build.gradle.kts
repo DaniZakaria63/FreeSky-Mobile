@@ -1,11 +1,13 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.wingsheep.encrypt"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -40,34 +42,14 @@ android {
 }
 
 dependencies {
-    // AndroidX
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.timber)
 
-    // ─────────────────────────────────────────────────────────────
-    // MLS Group Encryption (Layer 3)
-    // ─────────────────────────────────────────────────────────────
-    // The guide specifies: space.zeroxv6:kotlin-mls:1.1.0
-    // This library is not currently published to Maven Central.
-    // Add it once available, or substitute with another MLS Android SDK.
-    //
-    // implementation("space.zeroxv6:kotlin-mls:1.1.0")
-    //
-    // ─────────────────────────────────────────────────────────────
-
-    // ─────────────────────────────────────────────────────────────
-    // Noise Protocol (Layer 0 — transport auth)
-    // ─────────────────────────────────────────────────────────────
-    // The guide specifies: nl.sanderdijkhuis:noise-kotlin
-    // Available on Maven Central as version 1.0.1.
-    //
-    // implementation("nl.sanderdijkhuis:noise-kotlin:1.0.1")
-    //
-    // ─────────────────────────────────────────────────────────────
-
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
