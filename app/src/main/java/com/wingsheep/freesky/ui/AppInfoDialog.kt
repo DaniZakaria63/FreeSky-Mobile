@@ -36,7 +36,12 @@ import com.wingsheep.freesky.ui.theme.TerminalPrimary
 import com.wingsheep.freesky.ui.theme.TerminalTitle
 import com.wingsheep.freesky.ui.theme.TerminalWarning
 
-private const val PRIVACY_POLICY_URL = "walawe.fun/freesky-privacy-policy"
+var privacyPolicyUrl: String = "https://antinormies.github.io/tech-nerd/freesky-privacy-policy/"
+    private set
+
+fun setPrivacyPolicyUrl(url: String) {
+    privacyPolicyUrl = url
+}
 
 @Composable
 fun AppInfoDialog(onDismiss: () -> Unit) {
@@ -134,7 +139,7 @@ fun AppInfoDialog(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "> $PRIVACY_POLICY_URL",
+                text = "> $privacyPolicyUrl",
                 color = TerminalAccent,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -143,7 +148,7 @@ fun AppInfoDialog(onDismiss: () -> Unit) {
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {
-                        uriHandler.openUri("https://$PRIVACY_POLICY_URL")
+                        uriHandler.openUri(privacyPolicyUrl)
                     }
                     .padding(vertical = 4.dp)
             )
