@@ -61,4 +61,8 @@ class DataStoreRegistrationStore @Inject constructor(
     override suspend fun loadServerNoisePk(): ByteArray? {
         return dataStore.data.first()[KEY_SERVER_NOISE_PK]
     }
+
+    override suspend fun clear() {
+        dataStore.edit { it.clear() }
+    }
 }

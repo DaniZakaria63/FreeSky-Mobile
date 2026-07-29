@@ -17,10 +17,7 @@ object IdentityDeriver {
 
     fun deriveName(pkDevSec1: ByteArray): String {
         val hash = sha256(pkDevSec1)
-        return hash.copyOfRange(0, 8).joinToString("") { b ->
-            val printable = 0x21 + ((b.toInt() and 0xFF) % 0x5E) // map to !..~
-            printable.toChar().toString()
-        }
+        return hash.copyOfRange(0, 4).joinToString("") { "%02x".format(it) }
     }
 
     fun deriveColor(pkDevSec1: ByteArray): Int {

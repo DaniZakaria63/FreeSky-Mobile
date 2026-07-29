@@ -74,6 +74,10 @@ class RegistrationHandler(
      *
      * Reference: [Registration API Contract — apk_cert_sha1 field]
      */
+    suspend fun fetchServerNoisePk(): ByteArray? {
+        return apiClient.fetchServerNoisePk()
+    }
+
     fun computeApkCertSha1(): String {
         val certBytes: ByteArray
         if (android.os.Build.VERSION.SDK_INT >= 28) {
