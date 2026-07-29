@@ -1,6 +1,8 @@
 package com.wingsheep.freesky
 
 import android.app.Application
+import com.wingsheep.freesky.ui.setPrivacyPolicyUrl
+import com.wingsheep.network.config.RemoteConfigManager
 import com.wingsheep.network.tor.TorProxyManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +15,7 @@ import javax.inject.Inject
 class FreeskyApplication : Application() {
 
     @Inject lateinit var torProxyManager: TorProxyManager
+    @Inject lateinit var remoteConfigManager: RemoteConfigManager
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -20,6 +23,8 @@ class FreeskyApplication : Application() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
         torProxyManager.start(scope)
+        remoteConfigManager.init()
+        setPrivacyPolicyUrl(remoteConfigManager.privacyUrl)
     }
 
     override fun onTerminate() {

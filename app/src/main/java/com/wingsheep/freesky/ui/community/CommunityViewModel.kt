@@ -39,11 +39,17 @@ class CommunityViewModel @Inject constructor(
     private val _postAction = MutableStateFlow<PostActionState>(PostActionState.Idle)
     val postAction: StateFlow<PostActionState> = _postAction.asStateFlow()
 
+    private val _replyingTo = MutableStateFlow<DecryptedPost?>(null)
+    val replyingTo: StateFlow<DecryptedPost?> = _replyingTo.asStateFlow()
+
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
 
     private val _hasMore = MutableStateFlow(false)
     val hasMore: StateFlow<Boolean> = _hasMore.asStateFlow()
+
+    private val _threadReplies = MutableStateFlow<Map<Long, List<DecryptedPost>>>(emptyMap())
+    val threadReplies: StateFlow<Map<Long, List<DecryptedPost>>> = _threadReplies.asStateFlow()
 
     private var noiseClient: NoiseApiClient? = null
     private var nextCursor: Long? = null
@@ -59,6 +65,12 @@ class CommunityViewModel @Inject constructor(
     fun connect() {
         viewModelScope.launch {
             _connectionState.value = CommunityUiState.Connecting
+
+            if (!DeviceKeyManager.keyExists()) {
+                _connectionState.value = CommunityUiState.Error("Device not registered — tap Register first")
+                return@launch
+            }
+
             try {
                 val serverNoisePk = registrationStore.loadServerNoisePk()
                 if (serverNoisePk == null) {
@@ -106,7 +118,32 @@ class CommunityViewModel @Inject constructor(
 
                 loadFeed()
             } catch (e: Exception) {
-                Timber.e(e, "Noise session failed")
+                Timber.e(e, "Noise session failed — trying server-pk refresh")
+                val freshPk = registrationHandler.fetchServerNoisePk()
+                if (freshPk != null) {
+                    registrationStore.saveServerNoisePk(freshPk)
+                    _connectionState.value = CommunityUiState.Connecting
+                    try {
+                        val apkCertSha1 = registrationHandler.computeApkCertSha1()
+                        val client = noiseSessionFactory.establishSession(
+                            serverNoisePk = freshPk,
+                            apkCertSha1Hex = apkCertSha1
+                        )
+                        noiseClient = client
+                        _connectionState.value = CommunityUiState.Connected
+                        client.setNotificationListener(object : NotificationListener {
+                            override fun onNotification(notification: Notification) {
+                                if (notification.type == "new_post") {
+                                    viewModelScope.launch { refreshFeed() }
+                                }
+                            }
+                        })
+                        loadFeed()
+                        return@launch
+                    } catch (retryErr: Exception) {
+                        Timber.e(retryErr, "Noise retry also failed")
+                    }
+                }
                 _connectionState.value = CommunityUiState.Error(e.message ?: "Connection failed")
             }
         }
@@ -157,6 +194,23 @@ class CommunityViewModel @Inject constructor(
         }
     }
 
+    fun loadThread(postId: Long) {
+        viewModelScope.launch {
+            val client = noiseClient ?: return@launch
+            try {
+                val thread = client.getThread(postId)
+                val parent = decryptPostEntry(thread.post)
+                val replies = thread.replies.mapNotNull { decryptPostEntry(it) }
+                if (parent != null) {
+                    // Store thread replies so UI can show them expanded.
+                    _threadReplies.value = _threadReplies.value + (postId to replies)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Thread load failed for post $postId")
+            }
+        }
+    }
+
     fun loadMore() {
         if (_isLoadingMore.value) return
         val cursor = nextCursor ?: return
@@ -179,7 +233,15 @@ class CommunityViewModel @Inject constructor(
         }
     }
 
-    fun sendPost(content: String) {
+    fun setReplyingTo(post: DecryptedPost?) {
+        _replyingTo.value = post
+    }
+
+    fun clearReplyingTo() {
+        _replyingTo.value = null
+    }
+
+    fun sendPost(content: String, parentId: Long? = null) {
         if (content.isBlank()) return
         viewModelScope.launch {
             _postAction.value = PostActionState.Sending
@@ -194,7 +256,7 @@ class CommunityViewModel @Inject constructor(
                     content = content,
                     mlsManager = mlsGroupManager,
                     deviceKeyManager = DeviceKeyManager
-                )
+                )?.copy(parentId = parentId)
                 if (encryptedPost == null) {
                     _postAction.value = PostActionState.Failed("Encryption failed")
                     return@launch
@@ -203,6 +265,7 @@ class CommunityViewModel @Inject constructor(
                 val response = client.submitPost(encryptedPost)
                 if (response.message == "success") {
                     _postAction.value = PostActionState.Sent
+                    _replyingTo.value = null
                 } else {
                     _postAction.value = PostActionState.Failed(response.message)
                 }
@@ -211,6 +274,11 @@ class CommunityViewModel @Inject constructor(
                 _postAction.value = PostActionState.Failed(e.message ?: "Send failed")
             }
         }
+    }
+
+    fun sendReply(content: String) {
+        val parent = _replyingTo.value ?: return
+        sendPost(content, parentId = parent.id)
     }
 
     fun resetPostAction() {
@@ -251,7 +319,8 @@ class CommunityViewModel @Inject constructor(
             authorIdentity = IdentityDeriver.deriveIdentity(authorPk),
             timestamp = entry.timestamp * 1000,
             mlsEpoch = entry.mls_epoch,
-            isMine = isMine
+            isMine = isMine,
+            parentId = entry.parent_id
         )
     }
 

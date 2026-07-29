@@ -9,4 +9,7 @@ interface RegistrationStore {
     suspend fun saveServerNoisePk(pk: ByteArray)
     suspend fun loadGroupKey(): ByteArray?
     suspend fun loadServerNoisePk(): ByteArray?
+    suspend fun savePrivacyUrl(url: String)
+    suspend fun loadPrivacyUrl(): String?
+    suspend fun clear()
 }

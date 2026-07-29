@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wingsheep.freesky.model.RegistrationStore
 import com.wingsheep.freesky.model.RegistrationUiState
+import com.wingsheep.encrypt.identity.DeviceKeyManager
 import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.network.rotation.RegistrationHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,11 @@ class RegistrationViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             registrationStore.registrationState.collect { storeState ->
+                if (storeState is RegistrationUiState.Registered && !DeviceKeyManager.keyExists()) {
+                    Timber.w("DataStore says registered but device key missing — forcing re-register")
+                    registrationStore.clear()
+                    return@collect
+                }
                 if (storeState is RegistrationUiState.Registered) {
                     Timber.i("Already registered: name=\"${storeState.name}\" color=${storeState.color}")
                     // Restore MLS group state from persisted group key

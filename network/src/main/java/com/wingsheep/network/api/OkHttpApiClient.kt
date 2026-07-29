@@ -1,9 +1,11 @@
 package com.wingsheep.network.api
 
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.wingsheep.network.NetworkClient
 import com.wingsheep.network.model.RegisterRequest
 import com.wingsheep.network.model.RegisterResponse
+import com.wingsheep.network.model.ApiResponse
 import com.wingsheep.network.model.apiResponseFrom
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +24,28 @@ class OkHttpApiClient(
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val gson = Gson()
+    }
+
+    override suspend fun fetchServerNoisePk(): ByteArray? {
+        Timber.d("GET $baseUrl/server-pk")
+        val request = Request.Builder()
+            .url("$baseUrl/server-pk")
+            .get()
+            .addHeader("Accept", "application/json")
+            .build()
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Timber.w("server-pk failed: HTTP ${response.code}")
+                    return@withContext null
+                }
+                val body = response.body?.string() ?: return@withContext null
+                val type = object : TypeToken<ApiResponse<List<Int>>>() {}.type
+                val wrapped: ApiResponse<List<Int>> = gson.fromJson(body, type)
+                val data = wrapped.data ?: return@withContext null
+                data.map { it.toByte() }.toByteArray()
+            }
+        }
     }
 
     override suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
