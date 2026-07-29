@@ -24,6 +24,8 @@ Most "private" apps ask you to trust them. Freesky doesn't ask for trust — it 
 
 **Writing a post is a three-step dance.** Encrypt the content with AES-256-GCM using the group key. Sign the ciphertext with your ECDSA key so everyone knows it's really you (well, your pseudonym). Ship the whole thing through a Noise NK encrypted tunnel — ChaCha20Poly1305 over TCP, forward-secret, authenticated.
 
+**Comments are threaded.** Every post can have nested replies. The `parent_id` field links replies to their parent. A SQLite trigger validates parent existence. The `thread` endpoint uses a recursive CTE to fetch a post and all its descendants in one query. The Android client groups replies under their parent post with a terminal-style tree indentation (`┃`, `┗`, `┣`).
+
 **Reading the feed is the same dance in reverse.** The Noise tunnel brings you blobs. Verify each author's signature using their public key. Decrypt with the group key. Derive their display name from their public key via SHA-256. Render. Repeat.
 
 **Everything you see on screen was decrypted on your device.** End to end. No exceptions.
