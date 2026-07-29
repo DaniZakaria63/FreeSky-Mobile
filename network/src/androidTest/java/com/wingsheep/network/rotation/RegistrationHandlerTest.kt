@@ -29,6 +29,10 @@ class RegistrationHandlerTest {
         ): RegisterResponse {
             throw UnsupportedOperationException("Not used in this test")
         }
+
+        override suspend fun fetchServerNoisePk(): ByteArray? {
+            throw UnsupportedOperationException("Not used in this test")
+        }
     }
 
     @Test
