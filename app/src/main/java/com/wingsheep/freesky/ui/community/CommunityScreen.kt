@@ -50,7 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wingsheep.freesky.ui.AppInfoDialog
 import com.wingsheep.freesky.ui.theme.TerminalAccent
 import com.wingsheep.freesky.ui.theme.TerminalBackground
 import com.wingsheep.freesky.ui.theme.TerminalBorder
@@ -63,6 +65,8 @@ import com.wingsheep.freesky.ui.theme.TerminalSurface
 import com.wingsheep.freesky.ui.theme.TerminalTitle
 import com.wingsheep.freesky.ui.theme.TerminalWarning
 import com.wingsheep.freesky.ui.theme.terminalColor
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 @Composable
 fun CommunityScreen(
@@ -88,7 +92,7 @@ fun CommunityScreen(
                 .fillMaxSize()
                 .padding(12.dp)
         ) {
-            CommunityHeader(connectionState = connectionState)
+            CommunityHeader()
 
             when (connectionState) {
                 is CommunityUiState.Connecting -> {
@@ -121,6 +125,7 @@ fun CommunityScreen(
                         onReply = { viewModel.setReplyingTo(it) },
                         modifier = Modifier.weight(1f)
                     )
+                    ConnectionInfoBar(connectionState = connectionState)
                     PostInputBar(
                         postAction = postAction,
                         replyingTo = replyingTo,
@@ -141,17 +146,8 @@ fun CommunityScreen(
 }
 
 @Composable
-private fun CommunityHeader(connectionState: CommunityUiState) {
-    val statusText = when (connectionState) {
-        is CommunityUiState.Connecting -> "connecting..."
-        is CommunityUiState.Connected -> "connected"
-        is CommunityUiState.Error -> "disconnected"
-    }
-    val statusColor = when (connectionState) {
-        is CommunityUiState.Connecting -> TerminalWarning
-        is CommunityUiState.Connected -> TerminalSuccess
-        is CommunityUiState.Error -> TerminalError
-    }
+private fun CommunityHeader() {
+    var showInfo by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -166,21 +162,29 @@ private fun CommunityHeader(connectionState: CommunityUiState) {
             color = TerminalTitle,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { showInfo = true }
         )
         Text(
             text = "  ·  community",
             color = TerminalDim,
             fontSize = 12.sp,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontFamily = FontFamily.Monospace,
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = "\u25cf $statusText",
-            color = statusColor,
+            text = "support \u2665",
+            color = TerminalAccent,
             fontSize = 10.sp,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            fontFamily = FontFamily.Monospace
         )
+    }
+
+    if (showInfo) {
+        AppInfoDialog(onDismiss = { showInfo = false })
     }
 }
 
@@ -215,6 +219,68 @@ private fun ErrorPanel(message: String, onRetry: () -> Unit) {
             onClick = onRetry
         )
     }
+}
+
+@Composable
+private fun ConnectionInfoBar(connectionState: CommunityUiState) {
+    val ip = remember { getDeviceIp() }
+    val statusText = when (connectionState) {
+        is CommunityUiState.Connecting -> "connecting..."
+        is CommunityUiState.Connected -> "connected"
+        is CommunityUiState.Error -> "disconnected"
+    }
+    val statusColor = when (connectionState) {
+        is CommunityUiState.Connecting -> TerminalWarning
+        is CommunityUiState.Connected -> TerminalSuccess
+        is CommunityUiState.Error -> TerminalError
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(TerminalSurface.copy(alpha = 0.6f))
+            .border(1.dp, TerminalBorder.copy(alpha = 0.5f), shape = RoundedCornerShape(3.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "IP: $ip",
+            color = TerminalDim,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Text(
+            text = "  in FreeSky network",
+            color = TerminalAccent,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "\u25cf $statusText",
+            color = statusColor,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+private fun getDeviceIp(): String {
+    try {
+        val interfaces = NetworkInterface.getNetworkInterfaces()
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            if (networkInterface.isLoopback || !networkInterface.isUp) continue
+            val addresses = networkInterface.inetAddresses
+            while (addresses.hasMoreElements()) {
+                val addr = addresses.nextElement()
+                if (addr is Inet4Address && !addr.isLoopbackAddress) {
+                    return addr.hostAddress ?: "unknown"
+                }
+            }
+        }
+    } catch (_: Exception) { }
+    return "unknown"
 }
 
 @Composable
@@ -324,6 +390,39 @@ private fun PostItem(
     onReply: () -> Unit = {}
 ) {
     val authorColor = terminalColor(post.authorIdentity.color)
+
+    val replyButton = @Composable {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "\u21a9 reply",
+                color = TerminalAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .background(
+                        TerminalAccent.copy(alpha = 0.08f),
+                        RoundedCornerShape(3.dp)
+                    )
+                    .border(
+                        1.dp,
+                        TerminalAccent.copy(alpha = 0.3f),
+                        RoundedCornerShape(3.dp)
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onReply
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -370,39 +469,11 @@ private fun PostItem(
             lineHeight = 18.sp,
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "\u21a9 reply",
-                color = TerminalAccent,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .background(
-                        TerminalAccent.copy(alpha = 0.08f),
-                        RoundedCornerShape(3.dp)
-                    )
-                    .border(
-                        1.dp,
-                        TerminalAccent.copy(alpha = 0.3f),
-                        RoundedCornerShape(3.dp)
-                    )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onReply
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-        }
 
-        // Nested replies
-        if (replies.isNotEmpty()) {
+        if (replies.isEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            replyButton()
+        } else {
             Spacer(modifier = Modifier.height(6.dp))
             Box(
                 modifier = Modifier
@@ -416,6 +487,8 @@ private fun PostItem(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            replyButton()
         }
     }
 }
@@ -550,7 +623,7 @@ private fun PostInputBar(
         AnimatedVisibility(visible = postAction !is PostActionState.Idle) {
             val statusText = when (postAction) {
                 is PostActionState.Sending -> "> encrypting + signing + sending..."
-                is PostActionState.Sent -> "> [ok] post sent via noise channel"
+                is PostActionState.Sent -> "> [ok] post sent via FreeSky network"
                 is PostActionState.Failed -> "! failed: ${postAction.message}"
                 is PostActionState.Idle -> ""
             }

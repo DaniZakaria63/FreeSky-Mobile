@@ -34,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wingsheep.freesky.model.RegistrationUiState
+import com.wingsheep.freesky.ui.AppInfoDialog
 import com.wingsheep.freesky.ui.theme.TerminalAccent
 import com.wingsheep.freesky.ui.theme.TerminalBackground
 import com.wingsheep.freesky.ui.theme.TerminalBorder
@@ -193,6 +195,8 @@ fun TerminalStateNeedsRegistration(
 
 @Composable
 fun TerminalHeader() {
+    var showInfo by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -201,7 +205,12 @@ fun TerminalHeader() {
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TerminalText("freesky", color = TerminalTitle, fontSize = 16.sp, lineHeight = 22.sp)
+        TerminalText("freesky", color = TerminalTitle, fontSize = 16.sp, lineHeight = 22.sp,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { showInfo = true }
+        )
         Text(
             text = "  ·  register",
             color = TerminalDim,
@@ -210,6 +219,10 @@ fun TerminalHeader() {
             modifier = Modifier.weight(1f)
         )
         TerminalText("[secure]", color = TerminalSuccess, fontSize = 10.sp, lineHeight = 14.sp)
+    }
+
+    if (showInfo) {
+        AppInfoDialog(onDismiss = { showInfo = false })
     }
 }
 
