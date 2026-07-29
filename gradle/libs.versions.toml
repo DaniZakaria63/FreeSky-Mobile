@@ -21,6 +21,8 @@ timber = "5.0.1"
 gson = "2.12.1"
 datastorePreferences = "1.1.4"
 bouncyCastle = "1.85.1"
+firebaseBom = "33.12.0"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +54,8 @@ timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "tim
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncyCastle" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-config = { group = "com.google.firebase", name = "firebase-config-ktx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

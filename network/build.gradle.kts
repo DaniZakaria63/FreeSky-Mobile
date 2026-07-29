@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.bouncycastle)
 
     implementation(project(":encrypt"))
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.config)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
