@@ -43,7 +43,7 @@ jobs:
 
       - name: Build signed AAB and APK
         run: |
-          ./gradlew bundleRelease assembleRelease \
+          ./gradlew bundleProdRelease assembleProdRelease \
             -PappVersionName=$APP_VERSION_NAME \
             -PappVersionCode=$APP_VERSION_CODE
         env:
@@ -57,7 +57,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.wingsheep.freesky
-          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          releaseFiles: app/build/outputs/bundle/prodRelease/app-prod-release.aab
           tracks: internal
           status: completed
           whatsNewDirectory: whatsnew/
@@ -66,4 +66,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/prodRelease/app-prod-release.apk

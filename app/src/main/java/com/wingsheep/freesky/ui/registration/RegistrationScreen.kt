@@ -119,7 +119,7 @@ fun TerminalStateContent(
     }
 
     AnimatedVisibility(visible = state is RegistrationUiState.Registered) {
-        val s = state as RegistrationUiState.Registered
+        val s = state as? RegistrationUiState.Registered ?: return@AnimatedVisibility
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             TerminalText("$ [check] registration complete", color = TerminalSuccess)
             TerminalText("  welcome, ${s.name}", color = TerminalPrimary)
@@ -128,7 +128,7 @@ fun TerminalStateContent(
     }
 
     AnimatedVisibility(visible = state is RegistrationUiState.Error) {
-        val s = state as RegistrationUiState.Error
+        val s = state as? RegistrationUiState.Error ?: return@AnimatedVisibility
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             TerminalText("! error: ${s.message}", color = TerminalError)
             TerminalPromptButton(

@@ -281,6 +281,19 @@ class CommunityViewModel @Inject constructor(
         sendPost(content, parentId = parent.id)
     }
 
+    fun reportPost(postId: Long) {
+        viewModelScope.launch {
+            val client = noiseClient ?: return@launch
+            try {
+                val pk = registrationHandler.deviceKeyManager.publicKeySec1()
+                client.reportPost(postId, pk)
+                Timber.i("Reported post $postId")
+            } catch (e: Exception) {
+                Timber.e(e, "Report failed for post $postId")
+            }
+        }
+    }
+
     fun resetPostAction() {
         _postAction.value = PostActionState.Idle
     }

@@ -23,7 +23,7 @@ class FreeskyApplication : Application() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
         torProxyManager.start(scope)
-        remoteConfigManager.init()
+        remoteConfigManager.init(scope)
         setPrivacyPolicyUrl(remoteConfigManager.privacyUrl)
     }
 

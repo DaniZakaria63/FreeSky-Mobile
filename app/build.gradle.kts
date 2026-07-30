@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-
+    alias(libs.plugins.gms.google.services)
 }
 
 android {
@@ -24,32 +24,39 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("keystore/freesky.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
-        }
-    }
-
-    buildTypes {
-        release {
-            val keystoreExists = rootProject.file("keystore/freesky.jks").exists()
-            if (keystoreExists && System.getenv("KEYSTORE_PASSWORD") != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
-            optimization {
-                enable = false
-            }
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = project.rootProject.file("keystore/freesky.jks")
+            storePassword = Secrets.get(project, "KEYSTORE_PASSWORD")
+            keyAlias = Secrets.get(project, "KEY_ALIAS")
+            keyPassword = Secrets.get(project, "KEY_PASSWORD")
+        }
+    }
+
+    flavorDimensions += listOf("environment")
+    productFlavors {
+        create("prod") {
+            dimension = "environment"
+        }
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
 }
 

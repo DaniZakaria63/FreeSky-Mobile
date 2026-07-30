@@ -4,11 +4,12 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 @Singleton
 class RemoteConfigManager @Inject constructor() {
@@ -25,29 +26,19 @@ class RemoteConfigManager @Inject constructor() {
         const val DEFAULT_PRIVACY_URL = "https://antinormies.github.io/tech-nerd/freesky-privacy-policy/"
     }
 
-    @Volatile
     var serverIp: String = DEFAULT_SERVER_IP
         private set
 
-    @Volatile
     var serverPort: Int = DEFAULT_SERVER_PORT
         private set
 
-    @Volatile
     var noisePort: Int = DEFAULT_NOISE_PORT
         private set
 
-    @Volatile
     var privacyUrl: String = DEFAULT_PRIVACY_URL
         private set
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var fetched = false
-
-    fun init() {
-        if (fetched) return
-        fetched = true
-
+    fun init(scope: CoroutineScope) {
         val remoteConfig = try {
             FirebaseRemoteConfig.getInstance().apply {
                 setConfigSettingsAsync(
@@ -69,12 +60,17 @@ class RemoteConfigManager @Inject constructor() {
             return
         }
 
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             try {
-                remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        applyConfig(remoteConfig)
-                    }
+                suspendCancellableCoroutine<Unit> { cont ->
+                    remoteConfig.fetchAndActivate()
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                applyConfig(remoteConfig)
+                            }
+                            cont.resume(Unit)
+                        }
+                        .addOnFailureListener { cont.resume(Unit) }
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Remote config fetch failed, using defaults")

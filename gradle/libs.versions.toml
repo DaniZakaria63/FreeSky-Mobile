@@ -22,6 +22,7 @@ gson = "2.12.1"
 datastorePreferences = "1.1.4"
 bouncyCastle = "1.85.1"
 firebaseBom = "33.12.0"
+googleServices = "4.4.2"
 
 
 [libraries]
@@ -63,4 +64,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 android-library = { id = "com.android.library", version.ref = "agp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
