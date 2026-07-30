@@ -45,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -123,6 +125,7 @@ fun CommunityScreen(
                         hasMore = hasMore,
                         onLoadMore = { viewModel.loadMore() },
                         onReply = { viewModel.setReplyingTo(it) },
+                        onReport = { viewModel.reportPost(it.id) },
                         modifier = Modifier.weight(1f)
                     )
                     ConnectionInfoBar(connectionState = connectionState)
@@ -290,6 +293,7 @@ private fun FeedList(
     hasMore: Boolean,
     onLoadMore: () -> Unit,
     onReply: (DecryptedPost) -> Unit,
+    onReport: (DecryptedPost) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -335,7 +339,8 @@ private fun FeedList(
                     PostItem(
                         post = root,
                         replies = replies,
-                        onReply = { onReply(root) }
+                        onReply = { onReply(root) },
+                        onReport = { onReport(root) }
                     )
                 }
                 if (isLoadingMore) {
@@ -387,7 +392,8 @@ private fun EndOfFeedItem() {
 private fun PostItem(
     post: DecryptedPost,
     replies: List<DecryptedPost> = emptyList(),
-    onReply: () -> Unit = {}
+    onReply: () -> Unit = {},
+    onReport: () -> Unit = {}
 ) {
     val authorColor = terminalColor(post.authorIdentity.color)
 
@@ -460,6 +466,20 @@ private fun PostItem(
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace
             )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "[!]",
+                color = TerminalDim.copy(alpha = 0.6f),
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onReport
+                    )
+                    .padding(horizontal = 2.dp)
+            )
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -467,7 +487,7 @@ private fun PostItem(
             color = TerminalPrimary,
             fontSize = 13.sp,
             lineHeight = 18.sp,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            fontFamily = FontFamily.Monospace
         )
 
         if (replies.isEmpty()) {
@@ -648,7 +668,7 @@ private fun PostInputBar(
                 color = if (inputText.isNotBlank()) TerminalAccent else TerminalDim,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                fontFamily = FontFamily.Monospace
             )
             BasicTextField(
                 value = inputText,
@@ -656,13 +676,13 @@ private fun PostInputBar(
                 enabled = !isSending,
                 singleLine = false,
                 maxLines = 3,
-                textStyle = androidx.compose.ui.text.TextStyle(
+                textStyle = TextStyle(
                     color = TerminalPrimary,
                     fontSize = 13.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = FontFamily.Monospace,
                     lineHeight = 18.sp
                 ),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(TerminalCursor),
+                cursorBrush = SolidColor(TerminalCursor),
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 6.dp)
@@ -673,7 +693,7 @@ private fun PostInputBar(
                 color = if (canSend) TerminalAccent else TerminalDim,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontFamily = FontFamily.Monospace,
                 modifier = Modifier
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -691,7 +711,7 @@ private fun PostInputBar(
                     text = "\u2588",
                     color = TerminalCursor,
                     fontSize = 13.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = FontFamily.Monospace,
                     modifier = Modifier.alpha(cursorAlpha)
                 )
             }
@@ -740,8 +760,8 @@ private fun TerminalPromptButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text("\u25b8", color = textColor, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-        Text(text, color = textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+        Text("\u25b8", color = textColor, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+        Text(text, color = textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
     }
 }
 
