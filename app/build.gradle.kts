@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.gms.google.services)
-
 }
 
 android {
@@ -25,12 +24,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        compose = true
+    }
+
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("keystore/freesky.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            storeFile = project.rootProject.file("keystore/freesky.jks")
+            storePassword = Secrets.get(project, "KEYSTORE_PASSWORD")
+            keyAlias = Secrets.get(project, "KEY_ALIAS")
+            keyPassword = Secrets.get(project, "KEY_PASSWORD")
         }
     }
 
@@ -48,21 +55,8 @@ android {
 
     buildTypes {
         release {
-            val keystoreExists = rootProject.file("keystore/freesky.jks").exists()
-            if (keystoreExists && System.getenv("KEYSTORE_PASSWORD") != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
-            optimization {
-                enable = false
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    buildFeatures {
-        compose = true
     }
 }
 
