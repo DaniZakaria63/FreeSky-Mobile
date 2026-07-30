@@ -7,6 +7,7 @@ import com.wingsheep.network.model.NewGroupKeyData
 import com.wingsheep.network.model.PostResponse
 import com.wingsheep.network.model.RegisterRequest
 import com.wingsheep.network.model.RegisterResponse
+import com.wingsheep.network.model.ThreadData
 import com.wingsheep.network.model.apiResponseFrom
 import timber.log.Timber
 import java.io.IOException
@@ -37,13 +38,17 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
     }
 
     suspend fun submitPost(post: EncryptedPost): PostResponse {
-        val json = noiseManager.sendRequest("post", mapOf(
+        val params = mutableMapOf<String, Any?>(
             "ciphertext_comm" to post.ciphertextComm.map { it.toInt() and 0xFF },
             "author_pk" to post.authorPk.map { it.toInt() and 0xFF },
             "author_sig" to post.authorSig.map { it.toInt() and 0xFF },
             "timestamp" to post.timestamp / 1000,
             "mls_epoch" to post.mlsEpoch
-        ))
+        )
+        if (post.parentId != null) {
+            params["parent_id"] = post.parentId
+        }
+        val json = noiseManager.sendRequest("post", params)
         val wrapped = gson.apiResponseFrom<Any?>(json)
         Timber.d("Noise post result: ${wrapped.message}")
         return PostResponse(message = wrapped.message)
@@ -64,6 +69,15 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
         val wrapped = gson.apiResponseFrom<FeedData>(json)
         return wrapped.data
             ?: throw IOException("Noise feed failed: ${wrapped.message}")
+    }
+
+    suspend fun getThread(postId: Long): ThreadData {
+        val json = noiseManager.sendRequest("thread", mapOf(
+            "post_id" to postId
+        ))
+        val wrapped = gson.apiResponseFrom<ThreadData>(json)
+        return wrapped.data
+            ?: throw IOException("Noise thread failed: ${wrapped.message}")
     }
 
     suspend fun reportPost(postId: Long, reporterPk: ByteArray, reason: String? = null): PostResponse {

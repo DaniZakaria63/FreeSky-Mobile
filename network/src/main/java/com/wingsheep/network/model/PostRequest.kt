@@ -15,15 +15,17 @@ data class PostRequest(
     val author_pk: List<Int>,
     val author_sig: List<Int>,
     val timestamp: Long,
-    val mls_epoch: Long
+    val mls_epoch: Long,
+    val parent_id: Long? = null
 ) {
     companion object {
         fun fromEncryptedPost(post: EncryptedPost): PostRequest = PostRequest(
             ciphertext_comm = post.ciphertextComm.map { it.toInt() and 0xFF },
             author_pk = post.authorPk.map { it.toInt() and 0xFF },
             author_sig = post.authorSig.map { it.toInt() and 0xFF },
-            timestamp = post.timestamp / 1000,  // ms → seconds
-            mls_epoch = post.mlsEpoch
+            timestamp = post.timestamp / 1000,
+            mls_epoch = post.mlsEpoch,
+            parent_id = post.parentId
         )
     }
 }

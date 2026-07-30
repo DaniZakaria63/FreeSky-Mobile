@@ -5,7 +5,8 @@ data class EncryptedPost(
     val authorPk: ByteArray,
     val authorSig: ByteArray,
     val timestamp: Long,
-    val mlsEpoch: Long
+    val mlsEpoch: Long,
+    val parentId: Long? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

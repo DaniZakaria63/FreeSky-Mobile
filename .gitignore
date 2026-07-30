@@ -11,3 +11,4 @@ build
 .commandcode/
 .poolside/
 keystore
+keystore.properties

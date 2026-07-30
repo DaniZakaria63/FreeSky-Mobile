@@ -24,6 +24,7 @@ class DataStoreRegistrationStore @Inject constructor(
         val KEY_COLOR = intPreferencesKey("user_color")
         val KEY_GROUP_KEY = byteArrayPreferencesKey("group_key")
         val KEY_SERVER_NOISE_PK = byteArrayPreferencesKey("server_noise_pk")
+        val KEY_PRIVACY_URL = stringPreferencesKey("privacy_url")
     }
 
     override val registrationState: Flow<RegistrationUiState> = dataStore.data.map { prefs ->
@@ -60,5 +61,19 @@ class DataStoreRegistrationStore @Inject constructor(
 
     override suspend fun loadServerNoisePk(): ByteArray? {
         return dataStore.data.first()[KEY_SERVER_NOISE_PK]
+    }
+
+    override suspend fun savePrivacyUrl(url: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_PRIVACY_URL] = url
+        }
+    }
+
+    override suspend fun loadPrivacyUrl(): String? {
+        return dataStore.data.first()[KEY_PRIVACY_URL]
+    }
+
+    override suspend fun clear() {
+        dataStore.edit { it.clear() }
     }
 }

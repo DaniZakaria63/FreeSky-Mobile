@@ -11,5 +11,11 @@ data class PostEntryData(
     val author_pk: List<Int>,
     val author_sig: List<Int>,
     val timestamp: Long,
-    val mls_epoch: Long
+    val mls_epoch: Long,
+    val parent_id: Long? = null
+)
+
+data class ThreadData(
+    val post: PostEntryData,
+    val replies: List<PostEntryData>
 )
