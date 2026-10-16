@@ -18,14 +18,17 @@ class RemoteConfigManager @Inject constructor() {
         const val KEY_SERVER_IP = "server_ip"
         const val KEY_SERVER_PORT = "server_port"
         const val KEY_NOISE_PORT = "noise_port"
+        const val KEY_API_BASE_URL = "api_base_url"
         const val KEY_PRIVACY_URL = "privacy_policy_url"
 
-        const val DEFAULT_SERVER_IP = "208.76.40.197"
+        /** Default Noise transport host (raw TCP; also the legacy direct-HTTP fallback). */
+        const val DEFAULT_SERVER_IP = "139.99.88.23"
         const val DEFAULT_SERVER_PORT = 3000
         const val DEFAULT_NOISE_PORT = 9443
         const val DEFAULT_PRIVACY_URL = "https://antinormies.github.io/tech-nerd/freesky-privacy-policy/"
     }
 
+    /** Host for the Noise transport (raw TCP). */
     var serverIp: String = DEFAULT_SERVER_IP
         private set
 
@@ -33,6 +36,17 @@ class RemoteConfigManager @Inject constructor() {
         private set
 
     var noisePort: Int = DEFAULT_NOISE_PORT
+        private set
+
+    /**
+     * Base URL for the HTTP API (`/register`, `/server-pk`).
+     *
+     * In production this is an HTTPS Cloudflare-tunnel hostname
+     * (`api_base_url` remote config key), while the Noise transport keeps
+     * dialing [serverIp]:[noisePort] directly. Falls back to direct HTTP on
+     * the Noise host when the key is absent (older configs / dev).
+     */
+    var apiBaseUrl: String = "http://$DEFAULT_SERVER_IP:$DEFAULT_SERVER_PORT"
         private set
 
     var privacyUrl: String = DEFAULT_PRIVACY_URL
@@ -86,7 +100,12 @@ class RemoteConfigManager @Inject constructor() {
         noisePort = remoteConfig.getLong(KEY_NOISE_PORT).toInt().coerceIn(1, 65535).let {
             if (it == 0) DEFAULT_NOISE_PORT else it
         }
+        // HTTPS tunnel hostname in production; direct LAN http for the dev
+        // condition. Empty when the key is absent → fall back to direct HTTP.
+        apiBaseUrl = remoteConfig
+            .getString(KEY_API_BASE_URL)
+            .ifEmpty { "http://$serverIp:$serverPort" }
         privacyUrl = remoteConfig.getString(KEY_PRIVACY_URL).ifEmpty { DEFAULT_PRIVACY_URL }
-        Timber.d("Remote config applied: server=$serverIp:$serverPort, noise=$noisePort")
+        Timber.d("Remote config applied: api=$apiBaseUrl, noise=$serverIp:$noisePort")
     }
 }

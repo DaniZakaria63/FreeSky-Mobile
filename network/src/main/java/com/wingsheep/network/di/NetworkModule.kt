@@ -25,7 +25,9 @@ object NetworkModule {
         remoteConfig: RemoteConfigManager
     ): ApiClient =
         OkHttpApiClient(
-            baseUrl = "http://${remoteConfig.serverIp}:${remoteConfig.serverPort}",
+            // HTTPS tunnel hostname in production (`api_base_url` remote key);
+            // direct http://ip:port fallback when unset.
+            baseUrl = remoteConfig.apiBaseUrl,
             client = client
         )
 
@@ -44,5 +46,7 @@ object NetworkModule {
     fun provideNoiseSessionFactory(
         remoteConfig: RemoteConfigManager
     ): NoiseSessionFactory =
+        // Noise is raw TCP — it cannot ride the Cloudflare HTTP proxy, so it
+        // keeps dialing the server IP directly (server_ip + noise_port).
         NoiseSessionFactory(host = remoteConfig.serverIp, port = remoteConfig.noisePort)
 }
