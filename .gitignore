@@ -12,3 +12,4 @@ build
 .poolside/
 keystore
 keystore.properties
+.artifacts/
