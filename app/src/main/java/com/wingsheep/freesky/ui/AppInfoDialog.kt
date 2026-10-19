@@ -18,7 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -36,10 +39,15 @@ import com.wingsheep.freesky.ui.theme.TerminalPrimary
 import com.wingsheep.freesky.ui.theme.TerminalTitle
 import com.wingsheep.freesky.ui.theme.TerminalWarning
 
-var privacyPolicyUrl: String = "https://antinormies.github.io/tech-nerd/freesky-privacy-policy/"
+// Compose state, not a plain global: the remote-config fetch that supplies this
+// URL completes asynchronously, and a plain field would leave the dialog showing
+// the built-in default with no recomposition when the real value arrives.
+var privacyPolicyUrl: String by mutableStateOf("https://www.dream-team.works/freesky/privacy-policy")
     private set
 
-fun setPrivacyPolicyUrl(url: String) {
+// Named update* rather than set*: the property above is a Compose delegate, so a
+// function called setPrivacyPolicyUrl would clash with its generated JVM setter.
+fun updatePrivacyPolicyUrl(url: String) {
     privacyPolicyUrl = url
 }
 

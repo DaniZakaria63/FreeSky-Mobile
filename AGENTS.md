@@ -13,8 +13,9 @@ Android app (Jetpack Compose) + encrypt library. MLS-based encrypted community a
 - App namespace `com.wingsheep.freesky`, minSdk 24, targetSdk 36
 - Kotlin 2.2.10, AGP 9.3.0, Gradle 9.5
 - Compose Material3, version catalog at `gradle/libs.versions.toml`
-- Crypto plan in `docs/` — read before implementing encryption features
-- **Canonical protocol sync** at `/home/dani/opt/docs/freesky/` — truth for Android↔Server wire formats, curve choices, API shapes. Read `PROTOCOL_SYNC.md` first before any cross-boundary work (ECIES, signing, registration, Noise). Overrides stale docs/ if conflict.
+- There is no local `docs/` directory in this checkout. The crypto and protocol
+  plan lives in `/home/dani/opt/docs/freesky/` (see Boundaries).
+- **Canonical protocol sync** at `/home/dani/opt/docs/freesky/` — truth for Android↔Server wire formats, curve choices, API shapes. Read `PROTOCOL_SYNC.md` first before any cross-boundary work (ECIES, signing, registration, Noise). Overrides any stale local notes if they conflict.
 
 ## Environment
 
@@ -67,6 +68,9 @@ export ANDROID_HOME=/home/dani/Android/Sdk
 Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
 - `app/src/main/keepRules/rules.keep`
 - `encrypt/src/main/keepRules/rules.keep`
+- `network/src/main/keepRules/rules.keep` — Gson parses the API models reflectively
+  and they carry no `@SerializedName`, so R8 must not rename their fields; also
+  keeps the Tor JNI classes. Inert until `isMinifyEnabled` is turned on.
 
 ## Boundaries
 
@@ -75,11 +79,16 @@ Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
 
 ## Architecture notes
 
-- `:encrypt` module contains the crypto layer — see `docs/android-encryption-guide.md`
+- `:encrypt` module contains the crypto layer — see `/home/dani/opt/docs/freesky/PROTOCOL_SYNC.md`
 - `:network` module is the single source of truth for all HTTP — uses OkHttp client
 - Key material must use AndroidKeyStore; never export raw private key bytes
-- Transport security uses Noise NK (see `docs/android-encryption-guide.md` §1)
-- Content encryption uses MLS via `kotlin-mls` (see `docs/android-encryption-guide.md`)
+- Transport security uses Noise NK; sessions are single-use and strictly
+  request/response, one in flight at a time (see `NoiseManager`, `PROTOCOL_SYNC.md` §3.2)
+- Content encryption uses a server-issued 32-byte group key with AES-256-GCM as a
+  stand-in for MLS; real MLS is not wired on either side yet (see `MlsGroupManager`).
 - EC curve is secp256r1 (AndroidKeyStore constraint). Do NOT add X25519/Ed25519 code — server must match us, not the other way.
 - `:network` depends on `:encrypt` (KeyRotationHandler needs crypto primitives)
-- No DI framework, no navigation framework, no networking library added yet
+- DI: Hilt 2.60 (`@HiltAndroidApp`, `@HiltViewModel`, `@Module @InstallIn(SingletonComponent::class)`)
+- Networking: OkHttp 4.12, configured centrally in `NetworkClient`; `:network` stays
+  the single source of truth for all HTTP
+- No navigation framework

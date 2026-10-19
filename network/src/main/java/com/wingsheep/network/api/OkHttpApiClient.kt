@@ -16,9 +16,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
 import java.io.IOException
 
+/**
+ * OkHttp-backed [ApiClient].
+ *
+ * Both the base URL and the OkHttpClient are resolved through providers on
+ * every call, so remote-config changes (server address) and Tor availability
+ * are honoured without re-creating the singleton client.
+ */
 class OkHttpApiClient(
-    private val baseUrl: String,
-    private val client: OkHttpClient = NetworkClient.defaultClient
+    private val baseUrlProvider: () -> String,
+    private val clientProvider: () -> OkHttpClient = { NetworkClient.defaultClient }
 ) : ApiClient {
 
     companion object {
@@ -27,6 +34,7 @@ class OkHttpApiClient(
     }
 
     override suspend fun fetchServerNoisePk(): ByteArray? {
+        val baseUrl = baseUrlProvider()
         Timber.d("GET $baseUrl/server-pk")
         val request = Request.Builder()
             .url("$baseUrl/server-pk")
@@ -34,7 +42,7 @@ class OkHttpApiClient(
             .addHeader("Accept", "application/json")
             .build()
         return withContext(Dispatchers.IO) {
-            client.newCall(request).execute().use { response ->
+            clientProvider().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Timber.w("server-pk failed: HTTP ${response.code}")
                     return@withContext null
@@ -49,6 +57,7 @@ class OkHttpApiClient(
     }
 
     override suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
+        val baseUrl = baseUrlProvider()
         val reqBody = RegisterRequest.fromBytes(pkDev, apkCertSha1)
         val jsonBody = gson.toJson(reqBody)
 
@@ -62,7 +71,7 @@ class OkHttpApiClient(
             .build()
 
         return withContext(Dispatchers.IO) {
-            client.newCall(request).execute().use { response ->
+            clientProvider().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val err = response.body?.string()
                     Timber.w("Register failed: HTTP ${response.code} — $err")
