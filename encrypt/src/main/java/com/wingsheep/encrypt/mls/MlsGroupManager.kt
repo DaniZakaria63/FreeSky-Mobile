@@ -4,7 +4,10 @@ import android.content.Context
 import com.wingsheep.encrypt.CryptoError
 import com.wingsheep.encrypt.CryptoResult
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicReference
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -28,8 +31,23 @@ import javax.crypto.spec.SecretKeySpec
 class MlsGroupManager(private val context: Context) {
 
     companion object {
-        private const val GROUP_STATE_FILE = "mls_group_state.bin"
-        private const val EPOCH_FILE = "mls_group_epoch.bin"
+        /**
+         * Single-file group state: [magic][8-byte epoch][32-byte key].
+         *
+         * The key and the epoch it belongs to must travel together — a key paired
+         * with the wrong epoch yields posts nobody can decrypt — so they are
+         * written as one unit and published with an atomic rename.
+         */
+        private const val STATE_FILE = "mls_group_state_v2.bin"
+        private const val STATE_TMP_FILE = "mls_group_state_v2.bin.tmp"
+
+        /** Pre-v2 layout: the key and the epoch in two separate files. */
+        private const val LEGACY_GROUP_STATE_FILE = "mls_group_state.bin"
+        private const val LEGACY_EPOCH_FILE = "mls_group_epoch.bin"
+
+        private const val STATE_MAGIC = 0x46534B31 // "FSK1"
+        private const val STATE_HEADER_BYTES = 4
+        private const val STATE_EPOCH_BYTES = 8
 
         // AES-256-GCM parameters
         private const val AES_KEY_ALGORITHM = "AES"
@@ -43,11 +61,21 @@ class MlsGroupManager(private val context: Context) {
         private const val AES_KEY_LENGTH_BYTES = 32
     }
 
-    private var initialized: Boolean = false
-    private var groupKey: ByteArray = ByteArray(0)
-    private var epoch: Long = 0L
+    /**
+     * The group key together with the epoch it belongs to.
+     *
+     * These must never be observed apart: a post encrypted with the previous key
+     * but stamped with the next epoch cannot be decrypted by anybody.
+     */
+    private class GroupState(val key: ByteArray, val epoch: Long)
 
-    fun isInitialized(): Boolean = initialized
+    /** Published as one immutable reference, so a reader never sees a half-updated pair. */
+    private val stateRef = AtomicReference<GroupState?>(null)
+
+    /** Serializes the read-modify-write cycles that change the group state. */
+    private val stateLock = Any()
+
+    fun isInitialized(): Boolean = stateRef.get() != null
 
     fun initFromKeyMaterial(
         groupStateBytes: ByteArray,
@@ -56,43 +84,75 @@ class MlsGroupManager(private val context: Context) {
         if (groupStateBytes.size != AES_KEY_LENGTH_BYTES) {
             return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
         }
-        groupKey = groupStateBytes.copyOf()
-        epoch = readEpoch() + 1
-        persistState()
-        initialized = true
-        return CryptoResult.Success(Unit)
+        return try {
+            synchronized(stateLock) {
+                // Persist first, publish second: a state that never reached disk
+                // must not become the live one.
+                val base = stateRef.get() ?: readState()
+                val next = GroupState(groupStateBytes.copyOf(), (base?.epoch ?: 0L) + 1)
+                persistState(next)
+                stateRef.set(next)
+            }
+            CryptoResult.Success(Unit)
+        } catch (e: Exception) {
+            // Disk errors must not escape into ViewModel coroutines as
+            // uncaught exceptions (that would crash the app process).
+            CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+        }
     }
 
     fun restoreFromStorage(): CryptoResult<Unit> {
-        val keyBytes = readGroupState() ?: return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
-        if (keyBytes.size != AES_KEY_LENGTH_BYTES) {
-            return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+        return try {
+            synchronized(stateLock) {
+                val restored = readState()
+                    ?: return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+                if (restored.key.size != AES_KEY_LENGTH_BYTES) {
+                    return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+                }
+                stateRef.set(restored)
+            }
+            CryptoResult.Success(Unit)
+        } catch (e: Exception) {
+            CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
         }
-        groupKey = keyBytes
-        epoch = readEpoch()
-        initialized = true
-        return CryptoResult.Success(Unit)
     }
 
     fun encryptPost(plaintext: ByteArray): CryptoResult<ByteArray> {
-        if (!initialized) return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+        return when (val result = encryptPostWithEpoch(plaintext)) {
+            is CryptoResult.Success -> CryptoResult.Success(result.data.first)
+            is CryptoResult.Error -> result
+        }
+    }
+
+    /**
+     * Encrypts [plaintext] and returns the ciphertext together with the epoch that
+     * produced it, both taken from a single immutable snapshot.
+     *
+     * Callers must stamp the epoch returned here rather than querying
+     * [getCurrentEpoch] separately: two calls can straddle a key rotation and
+     * produce a post encrypted under one key but labelled with the next epoch.
+     */
+    fun encryptPostWithEpoch(plaintext: ByteArray): CryptoResult<Pair<ByteArray, Long>> {
+        val state = stateRef.get()
+            ?: return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
         return try {
             val nonce = ByteArray(GCM_NONCE_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
             val cipher = Cipher.getInstance(AES_GCM_TRANSFORM)
             cipher.init(
                 Cipher.ENCRYPT_MODE,
-                SecretKeySpec(groupKey, AES_KEY_ALGORITHM),
+                SecretKeySpec(state.key, AES_KEY_ALGORITHM),
                 GCMParameterSpec(GCM_TAG_LENGTH_BITS, nonce)
             )
             val ciphertext = cipher.doFinal(plaintext)
-            CryptoResult.Success(nonce + ciphertext)
+            CryptoResult.Success((nonce + ciphertext) to state.epoch)
         } catch (e: Exception) {
             CryptoResult.Error(CryptoError.MLS_DECRYPT_FAILED)
         }
     }
 
     fun decryptPost(ciphertext: ByteArray): CryptoResult<ByteArray> {
-        if (!initialized) return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+        val state = stateRef.get()
+            ?: return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
         if (ciphertext.size < GCM_NONCE_LENGTH_BYTES + 16) {
             return CryptoResult.Error(CryptoError.MLS_DECRYPT_FAILED)
         }
@@ -102,7 +162,7 @@ class MlsGroupManager(private val context: Context) {
             val cipher = Cipher.getInstance(AES_GCM_TRANSFORM)
             cipher.init(
                 Cipher.DECRYPT_MODE,
-                SecretKeySpec(groupKey, AES_KEY_ALGORITHM),
+                SecretKeySpec(state.key, AES_KEY_ALGORITHM),
                 GCMParameterSpec(GCM_TAG_LENGTH_BITS, nonce)
             )
             CryptoResult.Success(cipher.doFinal(ct))
@@ -120,33 +180,98 @@ class MlsGroupManager(private val context: Context) {
     }
 
     fun getCurrentEpoch(): CryptoResult<Long> {
-        if (!initialized) return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
-        return CryptoResult.Success(epoch)
+        val state = stateRef.get()
+            ?: return CryptoResult.Error(CryptoError.MLS_GROUP_NOT_INITIALIZED)
+        return CryptoResult.Success(state.epoch)
     }
 
-    private fun persistState() {
-        File(context.filesDir, GROUP_STATE_FILE).writeBytes(groupKey)
-        File(context.filesDir, EPOCH_FILE).writeBytes(epoch.toByteArray())
+    /**
+     * Writes the whole state to a temporary file, fsyncs it, then publishes it with
+     * an atomic rename. A crash can therefore never leave a key on disk paired with
+     * the wrong epoch, which is what the previous two-file write allowed.
+     */
+    private fun persistState(state: GroupState) {
+        val payload = ByteArray(STATE_HEADER_BYTES + STATE_EPOCH_BYTES + AES_KEY_LENGTH_BYTES)
+        writeMagic(payload)
+        writeLong(payload, STATE_HEADER_BYTES, state.epoch)
+        System.arraycopy(state.key, 0, payload, STATE_HEADER_BYTES + STATE_EPOCH_BYTES, state.key.size)
+
+        val target = File(context.filesDir, STATE_FILE)
+        val tmp = File(context.filesDir, STATE_TMP_FILE)
+        FileOutputStream(tmp).use { out ->
+            out.write(payload)
+            out.flush()
+            out.fd.sync()
+        }
+        // rename(2) is atomic within one filesystem: a reader observes the old state
+        // or the new state, never a mixture.
+        if (!tmp.renameTo(target)) {
+            throw IOException("Failed to publish MLS group state")
+        }
+
+        // The two-file layout is superseded; drop it so the retired key does not
+        // linger on disk.
+        runCatching { File(context.filesDir, LEGACY_GROUP_STATE_FILE).delete() }
+        runCatching { File(context.filesDir, LEGACY_EPOCH_FILE).delete() }
     }
 
-    private fun readGroupState(): ByteArray? {
-        val file = File(context.filesDir, GROUP_STATE_FILE)
-        return if (file.exists()) file.readBytes() else null
+    /** Reads the current state, falling back to the pre-v2 two-file layout. */
+    private fun readState(): GroupState? = readCombinedState() ?: readLegacyState()
+
+    private fun readCombinedState(): GroupState? {
+        val file = File(context.filesDir, STATE_FILE)
+        if (!file.exists()) return null
+        val bytes = file.readBytes()
+        val expected = STATE_HEADER_BYTES + STATE_EPOCH_BYTES + AES_KEY_LENGTH_BYTES
+        if (bytes.size != expected) return null
+        if (readInt(bytes, 0) != STATE_MAGIC) return null
+        val epoch = readLong(bytes, STATE_HEADER_BYTES)
+        val key = bytes.copyOfRange(STATE_HEADER_BYTES + STATE_EPOCH_BYTES, bytes.size)
+        return GroupState(key, epoch)
     }
 
-    private fun readEpoch(): Long {
-        val file = File(context.filesDir, EPOCH_FILE)
+    private fun readLegacyState(): GroupState? {
+        val file = File(context.filesDir, LEGACY_GROUP_STATE_FILE)
+        if (!file.exists()) return null
+        val key = file.readBytes()
+        if (key.size != AES_KEY_LENGTH_BYTES) return null
+        return GroupState(key, readLegacyEpoch())
+    }
+
+    private fun readLegacyEpoch(): Long {
+        val file = File(context.filesDir, LEGACY_EPOCH_FILE)
         if (!file.exists()) return 0L
         val bytes = file.readBytes()
-        if (bytes.size < 8) return 0L
-        var v = 0L
-        for (i in 0 until 8) {
-            v = (v shl 8) or (bytes[i].toLong() and 0xFF)
+        if (bytes.size < STATE_EPOCH_BYTES) return 0L
+        return readLong(bytes, 0)
+    }
+
+    private fun writeMagic(buf: ByteArray) {
+        buf[0] = ((STATE_MAGIC shr 24) and 0xFF).toByte()
+        buf[1] = ((STATE_MAGIC shr 16) and 0xFF).toByte()
+        buf[2] = ((STATE_MAGIC shr 8) and 0xFF).toByte()
+        buf[3] = (STATE_MAGIC and 0xFF).toByte()
+    }
+
+    private fun readInt(buf: ByteArray, offset: Int): Int {
+        var v = 0
+        for (i in 0 until STATE_HEADER_BYTES) {
+            v = (v shl 8) or (buf[offset + i].toInt() and 0xFF)
         }
         return v
     }
 
-    private fun Long.toByteArray(): ByteArray = ByteArray(8) { i ->
-        ((this shr ((7 - i) * 8)) and 0xFF).toByte()
+    private fun writeLong(buf: ByteArray, offset: Int, value: Long) {
+        for (i in 0 until STATE_EPOCH_BYTES) {
+            buf[offset + i] = ((value shr ((7 - i) * 8)) and 0xFF).toByte()
+        }
+    }
+
+    private fun readLong(buf: ByteArray, offset: Int): Long {
+        var v = 0L
+        for (i in 0 until STATE_EPOCH_BYTES) {
+            v = (v shl 8) or (buf[offset + i].toLong() and 0xFF)
+        }
+        return v
     }
 }

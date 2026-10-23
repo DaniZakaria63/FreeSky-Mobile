@@ -47,8 +47,19 @@ class FreeskyApplication : Application() {
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityStarted(activity: Activity) {
                 startedActivities++
+                // INFO, not DEBUG: production devices commonly ship
+                // persist.log.tag=I (this Infinix does), which silently drops every
+                // D-level line — exactly the ones needed to diagnose this flow.
+                Timber.i(
+                    "lifecycle: %s started (visible=%d)",
+                    activity.javaClass.simpleName, startedActivities
+                )
+                val wasPending = pendingTorShutdown?.isActive == true
                 pendingTorShutdown?.cancel()
                 pendingTorShutdown = null
+                if (wasPending) {
+                    Timber.i("lifecycle: cancelled pending Tor shutdown, UI is back")
+                }
                 // Idempotent: binds TorService once and keeps Tor warm while
                 // any app UI is visible.
                 torProxyManager.start()
@@ -56,6 +67,10 @@ class FreeskyApplication : Application() {
 
             override fun onActivityStopped(activity: Activity) {
                 startedActivities = (startedActivities - 1).coerceAtLeast(0)
+                Timber.i(
+                    "lifecycle: %s stopped (visible=%d)",
+                    activity.javaClass.simpleName, startedActivities
+                )
                 if (startedActivities == 0) {
                     scheduleTorShutdown()
                 }
@@ -78,13 +93,17 @@ class FreeskyApplication : Application() {
     private fun scheduleTorShutdown() {
         pendingTorShutdown?.cancel()
         pendingTorShutdown = scope.launch {
+            Timber.i("lifecycle: Tor idle shutdown armed for %d ms", TOR_IDLE_SHUTDOWN_DELAY_MS)
             delay(TOR_IDLE_SHUTDOWN_DELAY_MS)
             withContext(Dispatchers.Main) {
                 // Re-check on the main thread: if a new activity started in
                 // the meantime, its onActivityStarted already cancelled this
                 // job — but stopping is harmless only when truly idle.
                 if (startedActivities == 0) {
+                    Timber.i("lifecycle: idle timer expired, stopping Tor")
                     torProxyManager.stop()
+                } else {
+                    Timber.i("lifecycle: idle timer expired but UI is visible, keeping Tor")
                 }
             }
         }

@@ -18,13 +18,15 @@ object PostCrypto {
     ): EncryptedPost? {
         val plaintext = content.toByteArray(Charsets.UTF_8)
 
-        val encryptResult = mlsManager.encryptPost(plaintext)
+        // Ciphertext and epoch come from one snapshot: querying the epoch separately
+        // could straddle a key rotation and label the post with the wrong one.
+        val encryptResult = mlsManager.encryptPostWithEpoch(plaintext)
         if (encryptResult.isError) {
             val error = encryptResult as CryptoResult.Error
             Log.w(TAG, "MLS encryption failed: ${error.reason}")
             return null
         }
-        val ciphertext = encryptResult.getOrThrow()
+        val (ciphertext, epoch) = encryptResult.getOrThrow()
 
         // Sign the RAW ciphertext. SHA256withECDSA hashes once internally,
         // matching server's p256 ecdsa_verify (crypto.rs:134) which also hashes once.
@@ -35,14 +37,6 @@ object PostCrypto {
             Log.w(TAG, "Signing failed", e)
             return null
         }
-
-        val epochResult = mlsManager.getCurrentEpoch()
-        if (epochResult.isError) {
-            val error = epochResult as CryptoResult.Error
-            Log.w(TAG, "Failed to get MLS epoch: ${error.reason}")
-            return null
-        }
-        val epoch = epochResult.getOrThrow()
 
         return EncryptedPost(
             ciphertextComm = ciphertext,

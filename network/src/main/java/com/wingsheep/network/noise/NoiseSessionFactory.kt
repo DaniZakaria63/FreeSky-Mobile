@@ -19,8 +19,15 @@ import java.security.MessageDigest
  * Reference: PROTOCOL_SYNC.md §3.2 — Noise NK Handshake
  */
 class NoiseSessionFactory(
-    private val host: String,
-    private val port: Int,
+    /**
+     * Resolved per session, not captured at construction.
+     *
+     * The remote config that supplies these is fetched asynchronously, and this
+     * factory is a singleton built during the first injection — a snapshot taken
+     * here would pin the process to the hardcoded defaults forever.
+     */
+    private val hostProvider: () -> String,
+    private val portProvider: () -> Int,
     private val deviceKeyManager: DeviceKeyManager = DeviceKeyManager
 ) {
     /**
@@ -38,6 +45,9 @@ class NoiseSessionFactory(
         }
         val prologue = apkCertSha1Hex.uppercase().toByteArray(Charsets.UTF_8)
 
+        val host = hostProvider()
+        val port = portProvider()
+
         val manager = NoiseManager(
             host = host,
             port = port,
@@ -47,7 +57,14 @@ class NoiseSessionFactory(
             prologue = prologue
         )
         Timber.i("NoiseSessionFactory: establishing Noise NK session to $host:$port")
-        manager.establishSession()
+        try {
+            manager.establishSession()
+        } catch (t: Throwable) {
+            // Never leave a half-open session (socket / reader thread) behind —
+            // this also covers cancellation (activity destroyed mid-connect).
+            manager.close()
+            throw t
+        }
         return NoiseApiClient(manager)
     }
 }

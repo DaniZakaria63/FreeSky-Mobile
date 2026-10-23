@@ -1,6 +1,7 @@
 package com.wingsheep.network
 
 import okhttp3.OkHttpClient
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 /**
@@ -29,13 +30,16 @@ object NetworkClient {
     /**
      * Creates a new OkHttpClient with the specified [baseUrl].
      *
-     * Override [timeoutSeconds] or add interceptors as needed.
+     * Override [timeoutSeconds], add interceptors, or route through a
+     * [proxy] (e.g. the Tor SOCKS proxy) as needed.
      */
     fun newClient(
-        timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS
+        timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
+        proxy: Proxy? = null
     ): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
         .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
         .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
+        .apply { if (proxy != null) proxy(proxy) }
         .build()
 }
