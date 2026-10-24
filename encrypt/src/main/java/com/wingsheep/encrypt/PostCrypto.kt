@@ -1,84 +1,86 @@
 package com.wingsheep.encrypt
 
-import android.util.Log
 import com.wingsheep.encrypt.identity.DeviceKeyManager
 import com.wingsheep.encrypt.mls.MlsGroupManager
 import com.wingsheep.encrypt.model.EncryptedPost
-import java.security.MessageDigest
+import timber.log.Timber
 import java.security.PublicKey
+import javax.inject.Inject
 
-object PostCrypto {
-
-    private const val TAG = "PostCrypto"
+/**
+ * Creates and reads the signed, encrypted post envelope the server stores.
+ *
+ * Write path: encrypt with the group key, then sign the RAW ciphertext with the
+ * device key. `SHA256withECDSA` hashes once internally, matching the server's
+ * `p256` verification which also hashes once — pre-hashing here would double-hash
+ * and the server would reject every post.
+ *
+ * Read path: verify the signature over the raw ciphertext first, then decrypt, so
+ * a tampered or forged post is never handed to the cipher.
+ */
+class PostCrypto @Inject constructor(
+    private val deviceKeys: DeviceKeyManager
+) {
 
     fun createPost(
         content: String,
-        mlsManager: MlsGroupManager,
-        deviceKeyManager: DeviceKeyManager = DeviceKeyManager
-    ): EncryptedPost? {
-        val plaintext = content.toByteArray(Charsets.UTF_8)
-
-        val encryptResult = mlsManager.encryptPost(plaintext)
-        if (encryptResult.isError) {
-            val error = encryptResult as CryptoResult.Error
-            Log.w(TAG, "MLS encryption failed: ${error.reason}")
-            return null
+        mls: MlsGroupManager,
+        parentId: Long? = null
+    ): CryptoResult<EncryptedPost> {
+        val sealed = when (val result = mls.encryptPostWithEpoch(content.toByteArray(Charsets.UTF_8))) {
+            is CryptoResult.Error -> return failure("MLS encryption failed", result.reason)
+            is CryptoResult.Success -> result.data
         }
-        val ciphertext = encryptResult.getOrThrow()
 
-        // Sign the RAW ciphertext. SHA256withECDSA hashes once internally,
-        // matching server's p256 ecdsa_verify (crypto.rs:134) which also hashes once.
-        // Pre-hashing here would cause a double-hash and server rejection.
         val signature = try {
-            deviceKeyManager.sign(ciphertext)
+            deviceKeys.sign(sealed.ciphertext)
         } catch (e: Exception) {
-            Log.w(TAG, "Signing failed", e)
-            return null
+            return failure("Signing failed", CryptoError.SIGNING_FAILED, e)
         }
 
-        val epochResult = mlsManager.getCurrentEpoch()
-        if (epochResult.isError) {
-            val error = epochResult as CryptoResult.Error
-            Log.w(TAG, "Failed to get MLS epoch: ${error.reason}")
-            return null
-        }
-        val epoch = epochResult.getOrThrow()
-
-        return EncryptedPost(
-            ciphertextComm = ciphertext,
-            authorPk = deviceKeyManager.publicKeySec1(),
-            authorSig = signature,
-            timestamp = System.currentTimeMillis(),
-            mlsEpoch = epoch
+        return CryptoResult.Success(
+            EncryptedPost(
+                ciphertextComm = sealed.ciphertext,
+                authorPk = deviceKeys.publicKeySec1(),
+                authorSig = signature,
+                timestamp = System.currentTimeMillis(),
+                mlsEpoch = sealed.epoch,
+                parentId = parentId
+            )
         )
     }
 
     fun readPost(
         post: EncryptedPost,
-        mlsManager: MlsGroupManager,
-        authorPublicKey: PublicKey,
-        deviceKeyManager: DeviceKeyManager = DeviceKeyManager
-    ): String? {
-        // Verify signature over RAW ciphertext (matches createPost + server verify).
+        mls: MlsGroupManager,
+        authorPublicKey: PublicKey
+    ): CryptoResult<String> {
         val signatureValid = try {
-            deviceKeyManager.verify(post.ciphertextComm, post.authorSig, authorPublicKey)
+            deviceKeys.verify(post.ciphertextComm, post.authorSig, authorPublicKey)
         } catch (e: Exception) {
-            Log.w(TAG, "Signature verification error", e)
-            false
+            return failure("Signature verification failed", CryptoError.SIGNATURE_INVALID, e)
         }
         if (!signatureValid) {
-            Log.w(TAG, "Post signature invalid — possible tamper or forgery")
-            return null
+            return failure("Post signature invalid — possible tamper or forgery", CryptoError.POST_SIGNATURE_INVALID)
         }
 
-        val decryptResult = mlsManager.decryptPost(post.ciphertextComm)
-        if (decryptResult.isError) {
-            val error = decryptResult as CryptoResult.Error
-            Log.w(TAG, "MLS decryption failed: ${error.reason}")
-            return null
+        val plaintext = when (val result = mls.decryptPost(post.ciphertextComm)) {
+            is CryptoResult.Error -> return failure("MLS decryption failed", result.reason)
+            is CryptoResult.Success -> result.data
         }
-        val plaintext = decryptResult.getOrThrow()
+        return CryptoResult.Success(plaintext.toString(Charsets.UTF_8))
+    }
 
-        return plaintext.toString(Charsets.UTF_8)
+    private fun failure(
+        message: String,
+        reason: CryptoError,
+        cause: Throwable? = null
+    ): CryptoResult.Error {
+        if (cause == null) {
+            Timber.w("%s (%s)", message, reason)
+        } else {
+            Timber.w(cause, "%s (%s)", message, reason)
+        }
+        return CryptoResult.Error(reason)
     }
 }

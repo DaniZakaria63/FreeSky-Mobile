@@ -1,5 +1,8 @@
 package com.wingsheep.network.model
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
+
 /**
  * Unsolicited notification pushed from server to connected clients over Noise.
  *
@@ -11,7 +14,8 @@ package com.wingsheep.network.model
  * { "type": "new_post", "timestamp": 1721692800000 }
  * ```
  */
+@Keep
 data class Notification(
-    val type: String,
-    val timestamp: Long
+    @SerializedName("type") val type: String,
+    @SerializedName("timestamp") val timestamp: Long
 )

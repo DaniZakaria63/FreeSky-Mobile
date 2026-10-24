@@ -1,12 +1,20 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+# R8 keep rules — :app
 #
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# This file is the escape hatch, not the default. Classes that must survive
+# shrinking declare it in code with @androidx.annotation.Keep.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# @Keep is only a marker annotation: R8 has no built-in meaning for it, so without
+# these rules the annotation does nothing at all. Play services — a transitive
+# Firebase dependency — happens to ship the same mapping today, but shrinker
+# correctness must not depend on an unrelated library being on the classpath.
+-keep @androidx.annotation.Keep class * { *; }
+-keepclassmembers class * {
+    @androidx.annotation.Keep <fields>;
+}
+-keepclassmembers class * {
+    @androidx.annotation.Keep <methods>;
+}
+
+# Not part of AGP's default proguard file: keep line numbers and source file names
+# so mapping.txt + retrace turn a production stack trace into a readable one.
+-keepattributes SourceFile,LineNumberTable

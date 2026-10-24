@@ -5,6 +5,10 @@ import com.wingsheep.encrypt.model.EncryptedPost
 /**
  * Request body for POST /post.
  *
+ * The production transport builds this payload as a map inside
+ * [com.wingsheep.network.noise.NoiseApiClient], so this class is exercised by unit
+ * tests only — it deliberately has no keep annotation and R8 may strip it.
+ *
  * Field names use snake_case to match the server's serde deserialization
  * of `freesky_shared::types::PostRequest` (Rust `Vec<u8>` → JSON array of ints).
  *

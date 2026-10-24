@@ -6,7 +6,8 @@
 
 Freesky is an end-to-end encrypted community messaging application. This policy describes what information is collected, how it is used, and your rights regarding your data.
 
-**Contact:** walawe.fun/freesky-privacy-policy
+**Contact:** admin@freesky.app
+**Published at:** https://www.dream-team.works/freesky/privacy-policy
 
 ---
 
@@ -148,13 +149,13 @@ Depending on your jurisdiction, you may have the right to:
 - **Deletion** — Request removal of your data from the server (contact the operator directly)
 - **Object** — Object to data processing (uninstall the app)
 
-To exercise these rights, contact the server operator at walawe.fun/freesky-privacy-policy.
+To exercise these rights, contact the server operator at admin@freesky.app.
 
 ---
 
 ## 11. Changes to This Policy
 
-Policy updates will be posted at walawe.fun/freesky-privacy-policy. Continued use after changes constitutes acceptance.
+Policy updates will be posted at https://www.dream-team.works/freesky/privacy-policy. Continued use after changes constitutes acceptance.
 
 ---
 

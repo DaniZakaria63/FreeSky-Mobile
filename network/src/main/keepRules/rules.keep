@@ -1,12 +1,12 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+# R8 keep rules — :network
 #
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# Our own wire models need no rules here: the classes Gson reflects over carry
+# @androidx.annotation.Keep and @SerializedName, and the mapping for that annotation
+# is declared once in :app's keep rules. Gson ships its own consumer rules
+# (META-INF/proguard/gson.pro) for TypeToken subclasses and the Signature attribute.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Tor (JNI) ------------------------------------------------------------------
+# libtor.so loads through TorService, and the native layer calls back into these
+# types by name, which R8 cannot see. The library ships no consumer rules of its
+# own, so the package is pinned wholesale.
+-keep class org.torproject.jni.** { *; }

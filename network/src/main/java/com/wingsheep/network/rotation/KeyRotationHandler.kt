@@ -35,10 +35,7 @@ class KeyRotationHandler(
             return CryptoResult.Error(CryptoError.KEY_ROTATION_FAILED)
         }
 
-        val initResult = mlsManager.initFromKeyMaterial(
-            groupStateBytes = skComm,
-            identityKeyBytes = deviceKeyManager.publicKeySec1()
-        )
+        val initResult = mlsManager.initFromKeyMaterial(skComm)
         if (initResult.isError) {
             return initResult
         }

@@ -46,8 +46,7 @@ class RegistrationViewModel @Inject constructor(
                         // Fallback: load key from DataStore and init
                         val groupKey = registrationStore.loadGroupKey()
                         if (groupKey != null && groupKey.size == 32) {
-                            val pkSec1 = registrationHandler.deviceKeyManager.publicKeySec1()
-                            val initResult = mlsGroupManager.initFromKeyMaterial(groupKey, pkSec1)
+                            val initResult = mlsGroupManager.initFromKeyMaterial(groupKey)
                             Timber.i("MLS group init from DataStore: ${if (initResult.isSuccess) "ok" else "failed"}")
                         }
                     }
@@ -73,11 +72,7 @@ class RegistrationViewModel @Inject constructor(
                 // Persist identity LAST — so CommunityViewModel sees complete DataStore state
                 registrationStore.save(name = result.name, color = result.color)
                 // Initialize MLS group with the decrypted group key
-                val pkSec1 = registrationHandler.deviceKeyManager.publicKeySec1()
-                val initResult = mlsGroupManager.initFromKeyMaterial(
-                    groupStateBytes = result.groupKey,
-                    identityKeyBytes = pkSec1
-                )
+                val initResult = mlsGroupManager.initFromKeyMaterial(result.groupKey)
                 Timber.i("MLS group init: ${if (initResult.isSuccess) "ok" else "failed"}")
                 Timber.i("Registered as: ${result.name} (color=${result.color})")
             } catch (e: Exception) {

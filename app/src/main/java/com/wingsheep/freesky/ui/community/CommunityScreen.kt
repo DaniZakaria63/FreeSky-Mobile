@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wingsheep.freesky.data.community.DecryptedPost
 import com.wingsheep.freesky.ui.AppInfoDialog
 import com.wingsheep.freesky.ui.theme.TerminalAccent
 import com.wingsheep.freesky.ui.theme.TerminalBackground
@@ -75,12 +76,8 @@ fun CommunityScreen(
     viewModel: CommunityViewModel = viewModel(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val connectionState by viewModel.connectionState.collectAsState()
-    val posts by viewModel.posts.collectAsState()
-    val postAction by viewModel.postAction.collectAsState()
-    val replyingTo by viewModel.replyingTo.collectAsState()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
-    val hasMore by viewModel.hasMore.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val posts = uiState.posts
 
     Box(
         modifier = Modifier
@@ -96,44 +93,48 @@ fun CommunityScreen(
         ) {
             CommunityHeader()
 
-            when (connectionState) {
-                is CommunityUiState.Connecting -> {
+            when (val connection = uiState.connection) {
+                is ConnectionState.Connecting -> {
                     Spacer(modifier = Modifier.height(24.dp))
                     ConnectingPanel()
                 }
-                is CommunityUiState.Error -> {
+
+                is ConnectionState.Error -> {
                     Spacer(modifier = Modifier.height(24.dp))
                     ErrorPanel(
-                        message = (connectionState as CommunityUiState.Error).message,
+                        message = connection.message,
                         onRetry = { viewModel.connect() }
                     )
                 }
-                is CommunityUiState.Connected -> {
+
+                is ConnectionState.Connected -> {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     val grouped = remember(posts) {
-                        val roots = posts.filter { it.parentId == null }
                         val repliesByParent = posts
                             .filter { it.parentId != null }
-                            .groupBy { it.parentId!! }
-                        roots.map { root -> root to (repliesByParent[root.id] ?: emptyList()) }
+                            .groupBy { it.parentId }
+                        posts
+                            .filter { it.parentId == null }
+                            .distinctBy { it.id }
+                            .map { root -> root to repliesByParent[root.id].orEmpty() }
                     }
 
                     FeedList(
                         groupedPosts = grouped,
-                        isLoadingMore = isLoadingMore,
-                        hasMore = hasMore,
+                        isLoadingMore = uiState.isLoadingMore,
+                        hasMore = uiState.hasMore,
                         onLoadMore = { viewModel.loadMore() },
                         onReply = { viewModel.setReplyingTo(it) },
                         onReport = { viewModel.reportPost(it.id) },
                         modifier = Modifier.weight(1f)
                     )
-                    ConnectionInfoBar(connectionState = connectionState)
+                    ConnectionInfoBar(connection)
                     PostInputBar(
-                        postAction = postAction,
-                        replyingTo = replyingTo,
+                        postAction = uiState.postAction,
+                        replyingTo = uiState.replyingTo,
                         onSend = { content ->
-                            if (replyingTo != null) {
+                            if (uiState.replyingTo != null) {
                                 viewModel.sendReply(content)
                             } else {
                                 viewModel.sendPost(content)
@@ -225,17 +226,17 @@ private fun ErrorPanel(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun ConnectionInfoBar(connectionState: CommunityUiState) {
+private fun ConnectionInfoBar(connection: ConnectionState) {
     val ip = remember { getDeviceIp() }
-    val statusText = when (connectionState) {
-        is CommunityUiState.Connecting -> "connecting..."
-        is CommunityUiState.Connected -> "connected"
-        is CommunityUiState.Error -> "disconnected"
+    val statusText = when (connection) {
+        is ConnectionState.Connecting -> "connecting..."
+        is ConnectionState.Connected -> "connected"
+        is ConnectionState.Error -> "disconnected"
     }
-    val statusColor = when (connectionState) {
-        is CommunityUiState.Connecting -> TerminalWarning
-        is CommunityUiState.Connected -> TerminalSuccess
-        is CommunityUiState.Error -> TerminalError
+    val statusColor = when (connection) {
+        is ConnectionState.Connecting -> TerminalWarning
+        is ConnectionState.Connected -> TerminalSuccess
+        is ConnectionState.Error -> TerminalError
     }
 
     Row(
@@ -298,7 +299,6 @@ private fun FeedList(
 ) {
     val listState = rememberLazyListState()
 
-    val lastVisibleIndex = remember { derivedStateOf { listState.firstVisibleItemIndex + listState.firstVisibleItemScrollOffset } }
     val shouldLoadMore = remember(isLoadingMore, hasMore, groupedPosts.size) {
         derivedStateOf {
             hasMore &&

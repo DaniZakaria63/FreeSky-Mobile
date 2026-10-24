@@ -1,34 +1,22 @@
 package com.wingsheep.freesky
 
 import android.app.Application
-import com.wingsheep.freesky.ui.setPrivacyPolicyUrl
+import com.wingsheep.freesky.lifecycle.TorLifecycleObserver
 import com.wingsheep.network.config.RemoteConfigManager
-import com.wingsheep.network.tor.TorProxyManager
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import timber.log.Timber
 import javax.inject.Inject
 
 @HiltAndroidApp
 class FreeskyApplication : Application() {
 
-    @Inject lateinit var torProxyManager: TorProxyManager
-    @Inject lateinit var remoteConfigManager: RemoteConfigManager
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject lateinit var remoteConfig: RemoteConfigManager
+    @Inject lateinit var torLifecycleObserver: TorLifecycleObserver
 
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
-        torProxyManager.start(scope)
-        remoteConfigManager.init(scope)
-        setPrivacyPolicyUrl(remoteConfigManager.privacyUrl)
-    }
-
-    override fun onTerminate() {
-        torProxyManager.stop()
-        super.onTerminate()
+        remoteConfig.start()
+        torLifecycleObserver.attach()
     }
 }
