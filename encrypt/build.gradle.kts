@@ -22,15 +22,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    buildTypes {
-        release {
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-
     packaging {
         resources {
             excludes += setOf(

@@ -18,7 +18,7 @@ data class RegistrationResult(
 class RegistrationHandler(
     private val apiClient: ApiClient,
     private val context: Context,
-    val deviceKeyManager: DeviceKeyManager = DeviceKeyManager,
+    private val deviceKeyManager: DeviceKeyManager = DeviceKeyManager,
     private val eciesDecryptor: EciesDecryptor = EciesDecryptor
 ) {
     suspend fun register(): RegistrationResult {

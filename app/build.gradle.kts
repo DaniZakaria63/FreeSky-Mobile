@@ -55,6 +55,7 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -73,6 +74,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 

@@ -1,0 +1,9 @@
+New release for Freesky.
+
+- Thread and comment system: create posts with nested replies
+- Report functionality for posts and comments
+- Remote config integration for server settings
+- Privacy policy display in app info dialog
+- CI/CD pipelines for dev, release, and test builds
+- Signing configuration with env-var-first secrets helper
+- Fixed ANR on startup (remote config fetch no longer blocks main thread)

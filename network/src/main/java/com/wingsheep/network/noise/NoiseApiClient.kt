@@ -26,6 +26,15 @@ class NoiseApiClient(private val noiseManager: NoiseManager) {
         noiseManager.setNotificationListener(listener)
     }
 
+    /**
+     * Register a listener invoked (on the reader thread) when the session
+     * terminates unexpectedly — connection lost, protocol error.  Not invoked
+     * when [close] is called deliberately.  Pass null to stop.
+     */
+    fun setSessionLostListener(listener: (() -> Unit)?) {
+        noiseManager.setSessionLostListener(listener)
+    }
+
     suspend fun register(pkDev: ByteArray, apkCertSha1: String): RegisterResponse {
         val reqBody = RegisterRequest.fromBytes(pkDev, apkCertSha1)
         val json = noiseManager.sendRequest("register", mapOf(
