@@ -123,16 +123,15 @@ class CommunityRepository @Inject constructor(
      * Reloads the top of the feed and returns only the posts the caller does not
      * have yet.
      *
-     * [knownIds] comes from the caller's list; the cursor is advanced only when the
-     * refresh actually produced something new.
+     * Deliberately leaves [nextCursor] alone. A refresh only prepends newer posts,
+     * so the oldest loaded boundary has not moved; taking this page's next_cursor
+     * would advance it by one position per new post, and the following
+     * [loadNextPage] would then re-return posts the caller already holds — the
+     * duplicates that crashed the keyed feed list.
      */
     suspend fun refresh(knownIds: Set<Long>): List<DecryptedPost> = feedMutex.withLock {
         val feed = requireSession().getFeed(cursor = null, limit = PAGE_SIZE)
-        val fresh = postCodec.decodeAll(feed.posts).filterNot { it.id in knownIds }
-        if (fresh.isNotEmpty()) {
-            nextCursor = feed.next_cursor
-        }
-        fresh
+        postCodec.decodeAll(feed.posts).filterNot { it.id in knownIds }
     }
 
     /** Encrypts, signs and submits a post. Throws [CommunityException] on rejection. */

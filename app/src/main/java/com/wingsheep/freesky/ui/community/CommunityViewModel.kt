@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.wingsheep.freesky.data.community.CommunityEvent
 import com.wingsheep.freesky.data.community.CommunityRepository
 import com.wingsheep.freesky.data.community.DecryptedPost
+import com.wingsheep.freesky.data.community.FeedMerge
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -71,14 +72,13 @@ class CommunityViewModel @Inject constructor(
             _uiState.update { it.copy(isLoadingMore = true) }
             try {
                 val page = repository.loadNextPage() ?: return@launch
-                _uiState.update { it.copy(posts = it.posts + page.posts, hasMore = page.hasMore) }
+                _uiState.update {
+                    it.copy(posts = FeedMerge.append(it.posts, page.posts), hasMore = page.hasMore)
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (failure: Exception) {
-                // Stop trying: a failing page is usually the transport, not a
-                // transient hiccup, and the next refresh resets hasMore.
                 Timber.w(failure, "Loading more posts failed")
-                _uiState.update { it.copy(hasMore = false) }
             } finally {
                 _uiState.update { it.copy(isLoadingMore = false) }
             }
@@ -127,7 +127,9 @@ class CommunityViewModel @Inject constructor(
     private suspend fun loadFirstPage() {
         try {
             val page = repository.loadFirstPage()
-            _uiState.update { it.copy(posts = page.posts, hasMore = page.hasMore) }
+            _uiState.update {
+                it.copy(posts = FeedMerge.distinct(page.posts), hasMore = page.hasMore)
+            }
             Timber.i("Feed loaded: %d posts", page.posts.size)
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -184,7 +186,7 @@ class CommunityViewModel @Inject constructor(
             val knownIds = _uiState.value.posts.mapTo(HashSet()) { it.id }
             val fresh = repository.refresh(knownIds)
             if (fresh.isNotEmpty()) {
-                _uiState.update { it.copy(posts = fresh + it.posts) }
+                _uiState.update { it.copy(posts = FeedMerge.prepend(it.posts, fresh)) }
                 Timber.i("Feed refreshed: +%d posts", fresh.size)
             }
         } catch (cancellation: CancellationException) {

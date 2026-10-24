@@ -116,6 +116,7 @@ fun CommunityScreen(
                             .groupBy { it.parentId }
                         posts
                             .filter { it.parentId == null }
+                            .distinctBy { it.id }
                             .map { root -> root to repliesByParent[root.id].orEmpty() }
                     }
 
