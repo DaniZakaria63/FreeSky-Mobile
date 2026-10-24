@@ -10,6 +10,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Group-key content encryption, standing in for MLS until the openmls path is
@@ -24,8 +25,15 @@ import javax.inject.Inject
  * The state is held as one immutable snapshot and every encryption reads it once,
  * so ciphertext and epoch can never come from two different rotations.
  *
+ * A process-wide singleton on purpose. The key is loaded once and every consumer
+ * (registration, the repository, post decoding) must observe the same initialized
+ * state. Unscoped injection gave [PostCodec][com.wingsheep.freesky.data.community]
+ * a second, never-initialized instance, so every post silently failed to decrypt
+ * with MLS_GROUP_NOT_INITIALIZED and a non-empty feed rendered as "no posts".
+ *
  * Reference: PROTOCOL_SYNC.md §3.2 — Post Endpoints, §3.2 — Group Key
  */
+@Singleton
 class MlsGroupManager internal constructor(
     private val store: MlsGroupStateStore
 ) {
