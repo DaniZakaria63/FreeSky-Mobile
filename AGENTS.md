@@ -65,12 +65,21 @@ export ANDROID_HOME=/home/dani/Android/Sdk
 
 ## R8 / ProGuard
 
-Uses AGP 9.x `keepRules/` pattern (NOT `proguard-rules.pro`):
-- `app/src/main/keepRules/rules.keep`
-- `encrypt/src/main/keepRules/rules.keep`
-- `network/src/main/keepRules/rules.keep` — Gson parses the API models reflectively
-  and they carry no `@SerializedName`, so R8 must not rename their fields; also
-  keeps the Tor JNI classes. Inert until `isMinifyEnabled` is turned on.
+Release builds are minified (`isMinifyEnabled = true` in `app/build.gradle.kts`);
+debug builds are not. Rules live in AGP 9.x `keepRules/` source sets (NOT
+`proguard-rules.pro`), and library keep rules are consumed by the app build:
+
+- `app/src/main/keepRules/rules.keep` — maps `@androidx.annotation.Keep` to a keep
+  rule and keeps `SourceFile,LineNumberTable` for retrace. AGP's default proguard
+  file does not map `@Keep` (only play-services does), so this rule is load-bearing.
+- `network/src/main/keepRules/rules.keep` — Tor JNI (`org.torproject.jni.**`), which
+  cannot be annotated.
+- `encrypt/src/main/keepRules/rules.keep` — empty on purpose.
+
+The default is annotations, not rules: anything looked up by name at run time is
+`@Keep`-annotated. Gson wire models carry both `@Keep` (survives shrinking) and
+`@SerializedName` (survives a property rename), so the JSON contract cannot drift.
+Add a `-keep` rule only for third-party code you cannot annotate.
 
 ## Boundaries
 

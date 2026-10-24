@@ -1,0 +1,6 @@
+# R8 keep rules — :encrypt
+#
+# Intentionally empty. Every type in this module (device keys, ECIES/HKDF, the group
+# state and its private binary file format) is referenced statically; nothing is
+# looked up by name at run time. If that ever changes, annotate the class with
+# @androidx.annotation.Keep instead of adding a rule here.

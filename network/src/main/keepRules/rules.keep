@@ -1,24 +1,12 @@
-# :network keep rules
+# R8 keep rules — :network
 #
-# Nothing here is active today: no module sets isMinifyEnabled, so R8 does not
-# shrink release builds yet. These rules must be in place before it is enabled,
-# otherwise the Gson-based wire decoding below breaks silently rather than loudly.
+# Our own wire models need no rules here: the classes Gson reflects over carry
+# @androidx.annotation.Keep and @SerializedName, and the mapping for that annotation
+# is declared once in :app's keep rules. Gson ships its own consumer rules
+# (META-INF/proguard/gson.pro) for TypeToken subclasses and the Signature attribute.
 
-# --- Gson reflection -----------------------------------------------------------
-# Every API model is a plain Kotlin data class with no @SerializedName annotations
-# and is populated by Gson fromJson(). If R8 renames or removes those fields the
-# JSON keys stop matching and the models decode to null/defaults with no error,
-# so keep the model package and its field names wholesale.
--keep class com.wingsheep.network.model.** { <fields>; }
-
-# apiResponseFrom() builds TypeToken<ApiResponse<T>> subclasses; their generic
-# signature must survive shrinking.
--keep class com.google.gson.reflect.TypeToken { *; }
--keep class * extends com.google.gson.reflect.TypeToken
--keepattributes Signature
--keepattributes *Annotation*
-
-# --- Tor (JNI) -----------------------------------------------------------------
-# TorService loads libtor.so and the native layer calls back into these types by
-# name, which R8 cannot see.
+# --- Tor (JNI) ------------------------------------------------------------------
+# libtor.so loads through TorService, and the native layer calls back into these
+# types by name, which R8 cannot see. The library ships no consumer rules of its
+# own, so the package is pinned wholesale.
 -keep class org.torproject.jni.** { *; }

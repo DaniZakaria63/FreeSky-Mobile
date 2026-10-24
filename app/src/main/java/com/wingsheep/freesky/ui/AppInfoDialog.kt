@@ -1,13 +1,11 @@
 package com.wingsheep.freesky.ui
 
-import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,19 +16,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wingsheep.freesky.platform.readAppEnvironment
 import com.wingsheep.freesky.ui.theme.TerminalAccent
 import com.wingsheep.freesky.ui.theme.TerminalBackground
 import com.wingsheep.freesky.ui.theme.TerminalBorder
@@ -39,25 +40,24 @@ import com.wingsheep.freesky.ui.theme.TerminalPrimary
 import com.wingsheep.freesky.ui.theme.TerminalTitle
 import com.wingsheep.freesky.ui.theme.TerminalWarning
 
-// Compose state, not a plain global: the remote-config fetch that supplies this
-// URL completes asynchronously, and a plain field would leave the dialog showing
-// the built-in default with no recomposition when the real value arrives.
-var privacyPolicyUrl: String by mutableStateOf("https://www.dream-team.works/freesky/privacy-policy")
-    private set
+private val DialogShape = RoundedCornerShape(6.dp)
 
-// Named update* rather than set*: the property above is a Compose delegate, so a
-// function called setPrivacyPolicyUrl would clash with its generated JVM setter.
-fun updatePrivacyPolicyUrl(url: String) {
-    privacyPolicyUrl = url
-}
-
+/**
+ * About dialog: build, device and policy facts.
+ *
+ * The privacy-policy URL comes from [AppInfoViewModel] rather than a module-level
+ * Compose state holder, so the dialog owns no global mutable state and a remote
+ * override recomposes it automatically.
+ */
 @Composable
-fun AppInfoDialog(onDismiss: () -> Unit) {
+fun AppInfoDialog(
+    onDismiss: () -> Unit,
+    viewModel: AppInfoViewModel = viewModel()
+) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-
-    val appInfo = remember { getAppInfo(context) }
-    val deviceInfo = remember { getDeviceInfo() }
+    val environment = remember(context) { readAppEnvironment(context) }
+    val privacyPolicyUrl by viewModel.privacyPolicyUrl.collectAsState()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -66,165 +66,97 @@ fun AppInfoDialog(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .background(TerminalBackground, RoundedCornerShape(6.dp))
-                .border(1.dp, TerminalBorder, RoundedCornerShape(6.dp))
+                .background(TerminalBackground, DialogShape)
+                .border(1.dp, TerminalBorder, DialogShape)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "App Info",
-                color = TerminalTitle,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
+            TerminalLabel("App Info", TerminalTitle, size = 14.sp, bold = true)
+            SectionDivider()
 
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = TerminalBorder, thickness = 1.dp)
-            Spacer(Modifier.height(10.dp))
+            TerminalLabel(environment.appName, TerminalPrimary, size = 14.sp, bold = true)
+            TerminalLabel("version: ${environment.versionName} (${environment.versionCode})")
+            TerminalLabel("package: ${environment.packageName}")
 
-            Text(
-                text = appInfo.appName,
-                color = TerminalPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = "version: ${appInfo.versionName} (${appInfo.versionCode})",
-                color = TerminalDim,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = "package: ${appInfo.packageName}",
-                color = TerminalDim,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
+            TerminalSection("Device Info", TerminalAccent) {
+                TerminalLabel(
+                    "${environment.manufacturer} ${environment.model}",
+                    TerminalPrimary,
+                    size = 12.sp
+                )
+                TerminalLabel("Android ${environment.osVersion} (API ${environment.sdkInt})")
+                TerminalLabel("build: ${environment.buildDisplay}")
+            }
 
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = TerminalBorder, thickness = 1.dp)
-            Spacer(Modifier.height(10.dp))
+            TerminalSection("Privacy Policy", TerminalWarning) {
+                TerminalLabel(
+                    text = "> $privacyPolicyUrl",
+                    color = TerminalAccent,
+                    modifier = Modifier
+                        .clickableTerminal { uriHandler.openUri(privacyPolicyUrl) }
+                        .padding(vertical = 4.dp)
+                )
+            }
 
-            Text(
-                text = "Device Info",
-                color = TerminalAccent,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "${deviceInfo.manufacturer} ${deviceInfo.model}",
-                color = TerminalPrimary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = "Android ${deviceInfo.osVersion} (API ${deviceInfo.sdkInt})",
-                color = TerminalDim,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = "build: ${deviceInfo.buildDisplay}",
-                color = TerminalDim,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = TerminalBorder, thickness = 1.dp)
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                text = "Privacy Policy",
-                color = TerminalWarning,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "> $privacyPolicyUrl",
-                color = TerminalAccent,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        uriHandler.openUri(privacyPolicyUrl)
-                    }
-                    .padding(vertical = 4.dp)
-            )
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = TerminalBorder, thickness = 1.dp)
-            Spacer(Modifier.height(10.dp))
-
-            Text(
+            SectionDivider()
+            TerminalLabel(
                 text = "[ close ]",
                 color = TerminalAccent,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                size = 12.sp,
+                bold = true,
                 modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss
-                    )
+                    .clickableTerminal(onClick = onDismiss)
                     .padding(vertical = 6.dp)
             )
         }
     }
 }
 
-private data class AppInfo(
-    val appName: String,
-    val packageName: String,
-    val versionName: String,
-    val versionCode: String
-)
-
-private data class DeviceInfo(
-    val manufacturer: String,
-    val model: String,
-    val osVersion: String,
-    val sdkInt: Int,
-    val buildDisplay: String
-)
-
-private fun getAppInfo(context: Context): AppInfo {
-    val pm = context.packageManager
-    val packageName = context.packageName
-    return try {
-        val info = pm.getPackageInfo(packageName, 0)
-        AppInfo(
-            appName = info.applicationInfo?.loadLabel(pm)?.toString() ?: "Freesky",
-            packageName = packageName,
-            versionName = info.versionName ?: "1.0",
-            versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.longVersionCode.toString()
-            } else {
-                @Suppress("DEPRECATION")
-                info.versionCode.toString()
-            }
-        )
-    } catch (_: PackageManager.NameNotFoundException) {
-        AppInfo("Freesky", packageName, "1.0", "1")
-    }
+/** A titled block, preceded by the divider that separates dialog sections. */
+@Composable
+private fun TerminalSection(
+    title: String,
+    color: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    SectionDivider()
+    TerminalLabel(title, color, size = 12.sp, bold = true)
+    Spacer(Modifier.height(6.dp))
+    Column(content = content)
 }
 
-private fun getDeviceInfo(): DeviceInfo {
-    return DeviceInfo(
-        manufacturer = Build.MANUFACTURER,
-        model = Build.MODEL,
-        osVersion = Build.VERSION.RELEASE,
-        sdkInt = Build.VERSION.SDK_INT,
-        buildDisplay = Build.DISPLAY
+@Composable
+private fun SectionDivider() {
+    Spacer(Modifier.height(12.dp))
+    HorizontalDivider(color = TerminalBorder, thickness = 1.dp)
+    Spacer(Modifier.height(10.dp))
+}
+
+@Composable
+private fun TerminalLabel(
+    text: String,
+    color: Color = TerminalDim,
+    size: TextUnit = 11.sp,
+    bold: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        color = color,
+        fontSize = size,
+        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+        fontFamily = FontFamily.Monospace,
+        modifier = modifier
+    )
+}
+
+/** Terminal-style tap target: no ripple, no indication. */
+@Composable
+private fun Modifier.clickableTerminal(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = onClick
     )
 }
