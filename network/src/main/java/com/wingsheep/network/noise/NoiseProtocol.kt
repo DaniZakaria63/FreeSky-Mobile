@@ -152,7 +152,7 @@ private fun sec1ToPublicKey(sec1: ByteArray): java.security.PublicKey {
     return kf.generatePublic(java.security.spec.ECPublicKeySpec(point, params))
 }
 
-    private var cachedParams: java.security.spec.ECParameterSpec? = null
+private var cachedParams: java.security.spec.ECParameterSpec? = null
 
 private fun secp256r1Params(): java.security.spec.ECParameterSpec {
     if (cachedParams != null) return cachedParams!!

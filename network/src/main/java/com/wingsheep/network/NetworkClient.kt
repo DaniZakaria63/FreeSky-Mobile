@@ -5,33 +5,24 @@ import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 /**
- * Central OkHttpClient provider for the network module.
+ * Central OkHttpClient factory — the single source of truth for HTTP timeouts and
+ * connection pooling.
  *
- * All API clients in this module should obtain their OkHttpClient
- * from [defaultClient] or create a customised instance via
- * [newClient].
- *
- * This is the **single source of truth** for HTTP configuration:
- * timeouts, interceptors, and connection pooling are configured here.
+ * Clients are not cached here. An OkHttpClient owns a connection pool and a
+ * dispatcher thread, so whoever builds a customised one (the Tor route) also takes
+ * responsibility for closing it.
  */
 object NetworkClient {
 
-    /** Default timeout for all network requests (30 seconds). */
+    /** Default timeout for every network request. */
     private const val DEFAULT_TIMEOUT_SECONDS = 30L
 
-    /**
-     * Pre-configured OkHttpClient with sensible defaults.
-     *
-     * - 30-second connect and read timeouts
-     * - Shared connection pool (HTTP/1.1 keep-alive)
-     */
+    /** Shared client for direct, non-proxied calls. */
     val defaultClient: OkHttpClient = newClient()
 
     /**
-     * Creates a new OkHttpClient with the specified [baseUrl].
-     *
-     * Override [timeoutSeconds], add interceptors, or route through a
-     * [proxy] (e.g. the Tor SOCKS proxy) as needed.
+     * Builds a client, optionally routed through [proxy] (the Tor SOCKS proxy) and
+     * with a custom [timeoutSeconds].
      */
     fun newClient(
         timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
